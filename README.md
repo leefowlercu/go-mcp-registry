@@ -1,6 +1,6 @@
 # go-mcp-registry
 
-[![Go Version](https://img.shields.io/badge/go-%3E%3D1.21-blue.svg)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/go-%3E%3D1.24-blue.svg)](https://golang.org/)
 [![Test](https://github.com/leefowlercu/go-mcp-registry/actions/workflows/test.yml/badge.svg)](https://github.com/leefowlercu/go-mcp-registry/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Reference](https://pkg.go.dev/badge/github.com/leefowlercu/go-mcp-registry.svg)](https://pkg.go.dev/github.com/leefowlercu/go-mcp-registry)
