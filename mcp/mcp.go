@@ -20,7 +20,6 @@ const (
 	mediaTypeJSON  = "application/json"
 )
 
-
 // NewClient returns a new MCP Registry API client. If a nil httpClient is
 // provided, a new http.Client will be used. To use API methods which require
 // authentication, provide an http.Client that will perform the authentication
@@ -172,7 +171,6 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v any) (*Response, e
 
 	return response, err
 }
-
 
 // addOptions adds the parameters in opts as URL query parameters to s.
 // opts must be a struct whose fields may contain "url" tags.
