@@ -26,7 +26,7 @@ This Go SDK provides an idiomatic interface to the MCP Registry API, allowing yo
 go get github.com/leefowlercu/go-mcp-registry
 ```
 
-**Requirements:** Go 1.21 or later
+**Requirements:** Go 1.24 or later
 
 ## Quick Start
 
