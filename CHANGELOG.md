@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-09-17
+
+### Added
+- `ListUpdatedSince()` method to retrieve all servers updated since a specific timestamp
+- Automatic pagination handling in timestamp-based server filtering
+- Enhanced documentation with timestamp filtering usage examples
+- Comprehensive unit tests for `ListUpdatedSince()` functionality
+- Integration tests for timestamp-based filtering against live API
+
+### Changed
+- Updated Go version requirement documentation to align with module constraints
+- Enhanced package documentation with additional usage examples
+
+### Fixed
+- Corrected Go module version constraints in go.mod file
+
 ## [0.1.0] - 2025-09-16
 
 ### Added
@@ -87,4 +103,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Memory-efficient handling of large result sets
 - Optional automatic pagination for convenience
 
+[0.2.0]: https://github.com/leefowlercu/go-mcp-registry/releases/tag/v0.2.0
 [0.1.0]: https://github.com/leefowlercu/go-mcp-registry/releases/tag/v0.1.0
