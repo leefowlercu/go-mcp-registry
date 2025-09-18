@@ -779,11 +779,11 @@ func TestServersService_ListUpdatedSince(t *testing.T) {
 	testTime, _ := time.Parse(time.RFC3339, "2024-01-01T00:00:00Z")
 
 	tests := []struct {
-		name           string
-		since          time.Time
-		responses      []string
-		expectedCount  int
-		expectError    bool
+		name          string
+		since         time.Time
+		responses     []string
+		expectedCount int
+		expectError   bool
 	}{
 		{
 			name:  "single page with updated servers",
