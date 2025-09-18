@@ -774,6 +774,177 @@ func TestServersService_GetByNameLatestActiveVersion(t *testing.T) {
 	}
 }
 
+func TestServersService_ListUpdatedSince(t *testing.T) {
+	// Create test timestamp
+	testTime, _ := time.Parse(time.RFC3339, "2024-01-01T00:00:00Z")
+
+	tests := []struct {
+		name           string
+		since          time.Time
+		responses      []string
+		expectedCount  int
+		expectError    bool
+	}{
+		{
+			name:  "single page with updated servers",
+			since: testTime,
+			responses: []string{
+				`{
+					"servers": [
+						{
+							"name": "test/server1",
+							"version": "1.0.0",
+							"status": "active",
+							"meta": {
+								"official": {
+									"id": "server1",
+									"updated_at": "2024-01-02T00:00:00Z"
+								}
+							}
+						},
+						{
+							"name": "test/server2",
+							"version": "1.1.0",
+							"status": "active",
+							"meta": {
+								"official": {
+									"id": "server2",
+									"updated_at": "2024-01-03T00:00:00Z"
+								}
+							}
+						}
+					],
+					"metadata": {}
+				}`,
+			},
+			expectedCount: 2,
+			expectError:   false,
+		},
+		{
+			name:  "multiple pages with updated servers",
+			since: testTime,
+			responses: []string{
+				`{
+					"servers": [
+						{
+							"name": "test/server1",
+							"version": "1.0.0",
+							"status": "active",
+							"meta": {
+								"official": {
+									"id": "server1",
+									"updated_at": "2024-01-02T00:00:00Z"
+								}
+							}
+						}
+					],
+					"metadata": {
+						"next_cursor": "page2"
+					}
+				}`,
+				`{
+					"servers": [
+						{
+							"name": "test/server2",
+							"version": "1.1.0",
+							"status": "active",
+							"meta": {
+								"official": {
+									"id": "server2",
+									"updated_at": "2024-01-03T00:00:00Z"
+								}
+							}
+						}
+					],
+					"metadata": {}
+				}`,
+			},
+			expectedCount: 2,
+			expectError:   false,
+		},
+		{
+			name:  "no updated servers",
+			since: testTime,
+			responses: []string{
+				`{
+					"servers": [],
+					"metadata": {}
+				}`,
+			},
+			expectedCount: 0,
+			expectError:   false,
+		},
+		{
+			name:  "api error",
+			since: testTime,
+			responses: []string{
+				`{"message": "Internal server error"}`,
+			},
+			expectedCount: 0,
+			expectError:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, mux, _, teardown := setup()
+			defer teardown()
+
+			callCount := 0
+			mux.HandleFunc("/v0/servers", func(w http.ResponseWriter, r *http.Request) {
+				testMethod(t, r, "GET")
+
+				// Verify that updated_since parameter is set correctly
+				expectedValues := values{
+					"updated_since": tt.since.Format(time.RFC3339),
+					"limit":         "100",
+				}
+				if callCount > 0 {
+					expectedValues["cursor"] = "page2"
+				}
+				testFormValues(t, r, expectedValues)
+
+				if tt.expectError {
+					w.WriteHeader(http.StatusInternalServerError)
+				}
+
+				if callCount < len(tt.responses) {
+					fmt.Fprint(w, tt.responses[callCount])
+				}
+				callCount++
+			})
+
+			servers, err := client.Servers.ListUpdatedSince(context.Background(), tt.since)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Servers.ListUpdatedSince returned error: %v", err)
+			}
+
+			if len(servers) != tt.expectedCount {
+				t.Errorf("Expected %d servers, got %d", tt.expectedCount, len(servers))
+			}
+
+			// Verify all returned servers have updated_at after the since timestamp
+			for _, server := range servers {
+				if server.Meta != nil && server.Meta.Official != nil && !server.Meta.Official.UpdatedAt.IsZero() {
+					serverUpdatedAt := server.Meta.Official.UpdatedAt
+					if serverUpdatedAt.Before(tt.since) {
+						t.Errorf("Server %s updated_at %s is before since timestamp %s",
+							server.Meta.Official.ID, serverUpdatedAt.Format(time.RFC3339), tt.since.Format(time.RFC3339))
+					}
+				}
+			}
+		})
+	}
+}
+
 // Test helper functions
 
 func setup() (client *Client, mux *http.ServeMux, serverURL string, teardown func()) {

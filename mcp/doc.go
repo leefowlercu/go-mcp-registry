@@ -91,6 +91,19 @@
 //		fmt.Printf("Latest active: %s (v%s) - %s\n", server.Name, server.Version, server.Status)
 //	}
 //
+// Get servers updated since a specific timestamp:
+//
+//	since := time.Now().AddDate(0, 0, -7) // Last 7 days
+//	servers, err := client.Servers.ListUpdatedSince(context.Background(), since)
+//	if err == nil {
+//		fmt.Printf("Found %d servers updated since %s\n", len(servers), since.Format("2006-01-02"))
+//		for _, server := range servers {
+//			fmt.Printf("  %s (v%s) - updated: %s\n",
+//				server.Name, server.Version,
+//				server.Meta.Official.UpdatedAt.Format("2006-01-02"))
+//		}
+//	}
+//
 // # Pagination
 //
 // The API uses cursor-based pagination following the MCP Protocol specification.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 	registryv0 "github.com/modelcontextprotocol/registry/pkg/api/v0"
@@ -250,4 +251,39 @@ func (s *ServersService) GetByNameLatestActiveVersion(ctx context.Context, name 
 	}
 
 	return latestServer, nil
+}
+
+// ListUpdatedSince retrieves all servers that have been updated since the specified timestamp.
+// This method automatically handles pagination to return all matching servers.
+// The timestamp should be in RFC3339 format.
+// Returns an empty slice if no servers have been updated since the timestamp.
+func (s *ServersService) ListUpdatedSince(ctx context.Context, since time.Time) ([]registryv0.ServerJSON, error) {
+	opts := &ServerListOptions{
+		UpdatedSince: &since,
+		ListOptions: ListOptions{
+			Limit: 100,
+		},
+	}
+
+	var updatedServers []registryv0.ServerJSON
+
+	for {
+		resp, _, err := s.List(ctx, opts)
+		if err != nil {
+			return updatedServers, err
+		}
+
+		if resp.Servers != nil {
+			updatedServers = append(updatedServers, resp.Servers...)
+		}
+
+		// Check if there are more pages
+		if resp.Metadata == nil || resp.Metadata.NextCursor == "" {
+			break
+		}
+
+		opts.Cursor = resp.Metadata.NextCursor
+	}
+
+	return updatedServers, nil
 }

@@ -7,6 +7,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	mcp "github.com/leefowlercu/go-mcp-registry/mcp"
 )
@@ -360,4 +361,92 @@ func TestServersService_Pagination_Integration(t *testing.T) {
 	} else {
 		t.Log("No second page available")
 	}
+}
+
+func TestServersService_ListUpdatedSince_Integration(t *testing.T) {
+	if os.Getenv("INTEGRATION_TESTS") != "true" {
+		t.Skip("Skipping integration test. Set INTEGRATION_TESTS=true to run.")
+	}
+
+	client := mcp.NewClient(nil)
+	ctx := context.Background()
+
+	// Test with a recent timestamp (last 30 days)
+	since := time.Now().AddDate(0, 0, -30)
+	t.Logf("Testing ListUpdatedSince with timestamp: %s", since.Format(time.RFC3339))
+
+	servers, err := client.Servers.ListUpdatedSince(ctx, since)
+	if err != nil {
+		t.Fatalf("ListUpdatedSince returned error: %v", err)
+	}
+
+	t.Logf("Found %d servers updated since %s", len(servers), since.Format("2006-01-02"))
+
+	// Verify all returned servers have valid update timestamps
+	for i, server := range servers {
+		if i < 5 { // Log first 5 for debugging
+			t.Logf("Server %d: %s (v%s) - status: %s", i+1, server.Name, server.Version, server.Status)
+			if server.Meta != nil && server.Meta.Official != nil {
+				t.Logf("  ID: %s, Updated: %s", server.Meta.Official.ID, server.Meta.Official.UpdatedAt.Format(time.RFC3339))
+			}
+		}
+
+		// Verify timestamp if available
+		if server.Meta != nil && server.Meta.Official != nil && !server.Meta.Official.UpdatedAt.IsZero() {
+			serverUpdatedAt := server.Meta.Official.UpdatedAt
+			if serverUpdatedAt.Before(since) {
+				t.Errorf("Server %s updated_at %s is before since timestamp %s",
+					server.Meta.Official.ID, serverUpdatedAt.Format(time.RFC3339), since.Format(time.RFC3339))
+			}
+		}
+	}
+
+	// Test with a very recent timestamp (last 24 hours)
+	recent := time.Now().AddDate(0, 0, -1)
+	t.Logf("Testing ListUpdatedSince with recent timestamp: %s", recent.Format(time.RFC3339))
+
+	recentServers, err := client.Servers.ListUpdatedSince(ctx, recent)
+	if err != nil {
+		t.Fatalf("ListUpdatedSince with recent timestamp returned error: %v", err)
+	}
+
+	t.Logf("Found %d servers updated in last 24 hours", len(recentServers))
+
+	// The number of recent servers should be <= total servers updated in last 30 days
+	if len(recentServers) > len(servers) {
+		t.Errorf("Recent servers count (%d) should not exceed total servers count (%d)",
+			len(recentServers), len(servers))
+	}
+
+	// Test with a very old timestamp (should return many servers)
+	old := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	t.Logf("Testing ListUpdatedSince with old timestamp: %s", old.Format(time.RFC3339))
+
+	oldServers, err := client.Servers.ListUpdatedSince(ctx, old)
+	if err != nil {
+		t.Fatalf("ListUpdatedSince with old timestamp returned error: %v", err)
+	}
+
+	t.Logf("Found %d servers updated since %s", len(oldServers), old.Format("2006-01-02"))
+
+	// Should get significantly more servers with older timestamp
+	if len(oldServers) < len(servers) {
+		t.Errorf("Old timestamp should return more servers (%d) than recent timestamp (%d)",
+			len(oldServers), len(servers))
+	}
+
+	// Test with future timestamp (should return empty)
+	future := time.Now().AddDate(0, 0, 1)
+	t.Logf("Testing ListUpdatedSince with future timestamp: %s", future.Format(time.RFC3339))
+
+	futureServers, err := client.Servers.ListUpdatedSince(ctx, future)
+	if err != nil {
+		t.Fatalf("ListUpdatedSince with future timestamp returned error: %v", err)
+	}
+
+	if len(futureServers) > 0 {
+		t.Errorf("Future timestamp should return 0 servers, got %d", len(futureServers))
+	}
+
+	t.Log("Successfully verified ListUpdatedSince with various timestamps")
 }
