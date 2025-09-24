@@ -34,12 +34,12 @@ func main() {
 
 	// Try to get server by ID first (UUID format)
 	fmt.Printf("Getting details for server: %s\n", serverIdentifier)
-	server, resp, err = client.Servers.Get(ctx, serverIdentifier)
+	server, resp, err = client.Servers.Get(ctx, serverIdentifier, nil)
 
 	// If that fails with 404, try to get by name
 	if err != nil && resp != nil && resp.StatusCode == 404 {
 		fmt.Printf("Server ID not found, trying by name...\n")
-		servers, err := client.Servers.GetByName(ctx, serverIdentifier)
+		servers, _, err := client.Servers.ListByName(ctx, serverIdentifier)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -108,7 +108,7 @@ func main() {
 	// Show metadata if available
 	if server.Meta != nil && server.Meta.Official != nil {
 		fmt.Println("\nRegistry Metadata:")
-		fmt.Printf("ID: %s\n", server.Meta.Official.ID)
+		fmt.Printf("Server ID: %s\n", server.Meta.Official.ServerID)
 		fmt.Printf("Published: %s\n", server.Meta.Official.PublishedAt.Format("2006-01-02 15:04:05"))
 		if !server.Meta.Official.UpdatedAt.IsZero() {
 			fmt.Printf("Updated: %s\n", server.Meta.Official.UpdatedAt.Format("2006-01-02 15:04:05"))

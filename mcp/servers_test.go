@@ -65,7 +65,7 @@ func TestServersService_List(t *testing.T) {
 						},
 					},
 				},
-				Metadata: &registryv0.Metadata{
+				Metadata: registryv0.Metadata{
 					NextCursor: "next123",
 				},
 			},
@@ -82,7 +82,7 @@ func TestServersService_List(t *testing.T) {
 			responseBody: `{"servers": [], "metadata": {}}`,
 			expectedResult: &registryv0.ServerListResponse{
 				Servers:  []registryv0.ServerJSON{},
-				Metadata: &registryv0.Metadata{},
+				Metadata: registryv0.Metadata{},
 			},
 			expectedCursor: "",
 		},
@@ -93,7 +93,7 @@ func TestServersService_List(t *testing.T) {
 			responseBody:  `{"servers": [], "metadata": {}}`,
 			expectedResult: &registryv0.ServerListResponse{
 				Servers:  []registryv0.ServerJSON{},
-				Metadata: &registryv0.Metadata{},
+				Metadata: registryv0.Metadata{},
 			},
 			expectedCursor: "",
 		},
@@ -136,6 +136,7 @@ func TestServersService_Get(t *testing.T) {
 	tests := []struct {
 		name           string
 		serverID       string
+		opts           *ServerGetOptions
 		statusCode     int
 		responseBody   string
 		expectedResult *registryv0.ServerJSON
@@ -145,6 +146,7 @@ func TestServersService_Get(t *testing.T) {
 		{
 			name:       "successful get by ID",
 			serverID:   "test-id",
+			opts:       nil,
 			statusCode: http.StatusOK,
 			responseBody: `{
 				"name": "test-server",
@@ -155,10 +157,10 @@ func TestServersService_Get(t *testing.T) {
 				},
 				"_meta": {
 					"io.modelcontextprotocol.registry/official": {
-						"id": "test-id",
-						"published_at": "2024-01-01T00:00:00Z",
-						"updated_at": "2024-01-02T00:00:00Z",
-						"is_latest": true
+						"serverId": "test-id",
+						"publishedAt": "2024-01-01T00:00:00Z",
+						"updatedAt": "2024-01-02T00:00:00Z",
+						"isLatest": true
 					}
 				}
 			}`,
@@ -171,7 +173,7 @@ func TestServersService_Get(t *testing.T) {
 				},
 				Meta: &registryv0.ServerMeta{
 					Official: &registryv0.RegistryExtensions{
-						ID:          "test-id",
+						ServerID:    "test-id",
 						PublishedAt: publishedAt,
 						UpdatedAt:   updatedAt,
 						IsLatest:    true,
@@ -183,11 +185,51 @@ func TestServersService_Get(t *testing.T) {
 		{
 			name:           "server not found",
 			serverID:       "nonexistent",
+			opts:           nil,
 			statusCode:     http.StatusNotFound,
 			responseBody:   `{"message": "Server not found"}`,
 			expectedResult: nil,
 			expectError:    true,
 			expectedErrMsg: "Server not found",
+		},
+		{
+			name:       "successful get with version parameter",
+			serverID:   "test-id",
+			opts:       &ServerGetOptions{Version: "1.0.0"},
+			statusCode: http.StatusOK,
+			responseBody: `{
+				"name": "test-server",
+				"version": "1.0.0",
+				"description": "A test server with specific version",
+				"repository": {
+					"url": "https://github.com/example/test-server"
+				},
+				"_meta": {
+					"io.modelcontextprotocol.registry/official": {
+						"serverId": "test-id",
+						"publishedAt": "2024-01-01T00:00:00Z",
+						"updatedAt": "2024-01-02T00:00:00Z",
+						"is_latest": false
+					}
+				}
+			}`,
+			expectedResult: &registryv0.ServerJSON{
+				Name:        "test-server",
+				Version:     "1.0.0",
+				Description: "A test server with specific version",
+				Repository: model.Repository{
+					URL: "https://github.com/example/test-server",
+				},
+				Meta: &registryv0.ServerMeta{
+					Official: &registryv0.RegistryExtensions{
+						ServerID:    "test-id",
+						PublishedAt: publishedAt,
+						UpdatedAt:   updatedAt,
+						IsLatest:    false,
+					},
+				},
+			},
+			expectError: false,
 		},
 	}
 
@@ -198,13 +240,21 @@ func TestServersService_Get(t *testing.T) {
 
 			mux.HandleFunc(fmt.Sprintf("/v0/servers/%s", tt.serverID), func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
+
+				// Check version parameter if specified
+				if tt.opts != nil && tt.opts.Version != "" {
+					if version := r.URL.Query().Get("version"); version != tt.opts.Version {
+						t.Errorf("Expected version parameter %q, got %q", tt.opts.Version, version)
+					}
+				}
+
 				w.WriteHeader(tt.statusCode)
 				w.Header().Set("Content-Type", "application/json")
 				fmt.Fprint(w, tt.responseBody)
 			})
 
 			ctx := context.Background()
-			server, resp, err := client.Servers.Get(ctx, tt.serverID)
+			server, resp, err := client.Servers.Get(ctx, tt.serverID, tt.opts)
 
 			if tt.expectError {
 				if err == nil {
@@ -226,6 +276,92 @@ func TestServersService_Get(t *testing.T) {
 				}
 				if !reflect.DeepEqual(server, tt.expectedResult) {
 					t.Errorf("Servers.Get returned %+v, want %+v", server, tt.expectedResult)
+				}
+			}
+		})
+	}
+}
+
+func TestServersService_ListByServerID(t *testing.T) {
+	client, mux, _, teardown := setup()
+	defer teardown()
+
+	tests := []struct {
+		name          string
+		serverID      string
+		statusCode    int
+		responseBody  string
+		expectedCount int
+		expectError   bool
+	}{
+		{
+			name:       "successful list versions",
+			serverID:   "test-server-id",
+			statusCode: http.StatusOK,
+			responseBody: `{
+				"servers": [
+					{
+						"name": "test-server",
+						"version": "1.0.0",
+						"description": "Test server v1.0.0"
+					},
+					{
+						"name": "test-server",
+						"version": "1.1.0",
+						"description": "Test server v1.1.0"
+					}
+				],
+				"metadata": {}
+			}`,
+			expectedCount: 2,
+			expectError:   false,
+		},
+		{
+			name:       "empty versions list",
+			serverID:   "nonexistent-server",
+			statusCode: http.StatusOK,
+			responseBody: `{
+				"servers": [],
+				"metadata": {}
+			}`,
+			expectedCount: 0,
+			expectError:   false,
+		},
+		{
+			name:          "api error",
+			serverID:      "error-server",
+			statusCode:    http.StatusInternalServerError,
+			responseBody:  `{"message": "Internal server error"}`,
+			expectedCount: 0,
+			expectError:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mux.HandleFunc(fmt.Sprintf("/v0/servers/%s/versions", tt.serverID), func(w http.ResponseWriter, r *http.Request) {
+				testMethod(t, r, "GET")
+				w.WriteHeader(tt.statusCode)
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprint(w, tt.responseBody)
+			})
+
+			ctx := context.Background()
+			servers, resp, err := client.Servers.ListByServerID(ctx, tt.serverID)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				}
+				if resp.StatusCode != tt.statusCode {
+					t.Errorf("Expected status code %d, got %d", tt.statusCode, resp.StatusCode)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Servers.ListVersions returned error: %v", err)
+				}
+				if len(servers) != tt.expectedCount {
+					t.Errorf("Expected %d servers, got %d", tt.expectedCount, len(servers))
 				}
 			}
 		})
@@ -264,7 +400,7 @@ func TestServersService_ListAll(t *testing.T) {
 	})
 
 	ctx := context.Background()
-	servers, err := client.Servers.ListAll(ctx, nil)
+	servers, _, err := client.Servers.ListAll(ctx, nil)
 	if err != nil {
 		t.Errorf("Servers.ListAll returned error: %v", err)
 	}
@@ -281,7 +417,7 @@ func TestServersService_ListAll(t *testing.T) {
 	}
 }
 
-func TestServersService_GetByName(t *testing.T) {
+func TestServersService_ListByName(t *testing.T) {
 	tests := []struct {
 		name            string
 		searchName      string
@@ -367,7 +503,7 @@ func TestServersService_GetByName(t *testing.T) {
 			})
 
 			ctx := context.Background()
-			servers, err := client.Servers.GetByName(ctx, tt.searchName)
+			servers, _, err := client.Servers.ListByName(ctx, tt.searchName)
 
 			if tt.expectError {
 				if err == nil {
@@ -375,7 +511,7 @@ func TestServersService_GetByName(t *testing.T) {
 				}
 			} else {
 				if err != nil {
-					t.Errorf("Servers.GetByName returned error: %v", err)
+					t.Errorf("Servers.ListByName returned error: %v", err)
 				}
 
 				if len(servers) != len(tt.expectedResults) {
@@ -478,7 +614,7 @@ func TestServersService_GetByNameLatest(t *testing.T) {
 			})
 
 			ctx := context.Background()
-			server, err := client.Servers.GetByNameLatest(ctx, tt.searchName)
+			server, _, err := client.Servers.GetByNameLatest(ctx, tt.searchName)
 
 			if err != nil {
 				t.Errorf("Servers.GetByNameLatest returned error: %v", err)
@@ -603,7 +739,7 @@ func TestServersService_GetByNameExactVersion(t *testing.T) {
 			})
 
 			ctx := context.Background()
-			server, err := client.Servers.GetByNameExactVersion(ctx, tt.searchName, tt.searchVersion)
+			server, _, err := client.Servers.GetByNameExactVersion(ctx, tt.searchName, tt.searchVersion)
 
 			if err != nil {
 				t.Errorf("Servers.GetByNameExactVersion returned error: %v", err)
@@ -745,7 +881,7 @@ func TestServersService_GetByNameLatestActiveVersion(t *testing.T) {
 			})
 
 			ctx := context.Background()
-			server, err := client.Servers.GetByNameLatestActiveVersion(ctx, tt.searchName)
+			server, _, err := client.Servers.GetByNameLatestActiveVersion(ctx, tt.searchName)
 
 			if err != nil {
 				t.Errorf("Servers.GetByNameLatestActiveVersion returned error: %v", err)
@@ -774,7 +910,7 @@ func TestServersService_GetByNameLatestActiveVersion(t *testing.T) {
 	}
 }
 
-func TestServersService_ListUpdatedSince(t *testing.T) {
+func TestServersService_ListByUpdatedSince(t *testing.T) {
 	// Create test timestamp
 	testTime, _ := time.Parse(time.RFC3339, "2024-01-01T00:00:00Z")
 
@@ -798,7 +934,7 @@ func TestServersService_ListUpdatedSince(t *testing.T) {
 							"meta": {
 								"official": {
 									"id": "server1",
-									"updated_at": "2024-01-02T00:00:00Z"
+									"updatedAt": "2024-01-02T00:00:00Z"
 								}
 							}
 						},
@@ -833,7 +969,7 @@ func TestServersService_ListUpdatedSince(t *testing.T) {
 							"meta": {
 								"official": {
 									"id": "server1",
-									"updated_at": "2024-01-02T00:00:00Z"
+									"updatedAt": "2024-01-02T00:00:00Z"
 								}
 							}
 						}
@@ -914,7 +1050,7 @@ func TestServersService_ListUpdatedSince(t *testing.T) {
 				callCount++
 			})
 
-			servers, err := client.Servers.ListUpdatedSince(context.Background(), tt.since)
+			servers, _, err := client.Servers.ListByUpdatedSince(context.Background(), tt.since)
 
 			if tt.expectError {
 				if err == nil {
@@ -937,7 +1073,7 @@ func TestServersService_ListUpdatedSince(t *testing.T) {
 					serverUpdatedAt := server.Meta.Official.UpdatedAt
 					if serverUpdatedAt.Before(tt.since) {
 						t.Errorf("Server %s updated_at %s is before since timestamp %s",
-							server.Meta.Official.ID, serverUpdatedAt.Format(time.RFC3339), tt.since.Format(time.RFC3339))
+							server.Meta.Official.ServerID, serverUpdatedAt.Format(time.RFC3339), tt.since.Format(time.RFC3339))
 					}
 				}
 			}

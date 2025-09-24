@@ -71,7 +71,7 @@ func TestServersService_Search_Integration(t *testing.T) {
 	}
 }
 
-func TestServersService_GetByName_Integration(t *testing.T) {
+func TestServersService_ListByName_Integration(t *testing.T) {
 	if os.Getenv("INTEGRATION_TESTS") != "true" {
 		t.Skip("Skipping integration test. Set INTEGRATION_TESTS=true to run.")
 	}
@@ -92,16 +92,16 @@ func TestServersService_GetByName_Integration(t *testing.T) {
 	}
 
 	serverName := resp.Servers[0].Name
-	t.Logf("Testing GetByName with server: %s", serverName)
+	t.Logf("Testing ListByName with server: %s", serverName)
 
 	// Get the server by name
-	servers, err := client.Servers.GetByName(ctx, serverName)
+	servers, _, err := client.Servers.ListByName(ctx, serverName)
 	if err != nil {
-		t.Fatalf("GetByName returned error: %v", err)
+		t.Fatalf("ListByName returned error: %v", err)
 	}
 
 	if len(servers) == 0 {
-		t.Fatalf("GetByName returned no servers for name: %s", serverName)
+		t.Fatalf("ListByName returned no servers for name: %s", serverName)
 	}
 
 	// Verify all returned servers have the expected name
@@ -146,7 +146,7 @@ func TestServersService_GetByNameLatest_Integration(t *testing.T) {
 	t.Logf("Testing GetByNameLatest with server: %s", serverName)
 
 	// Get the latest version of the server by name
-	server, err := client.Servers.GetByNameLatest(ctx, serverName)
+	server, _, err := client.Servers.GetByNameLatest(ctx, serverName)
 	if err != nil {
 		t.Fatalf("GetByNameLatest returned error: %v", err)
 	}
@@ -161,16 +161,16 @@ func TestServersService_GetByNameLatest_Integration(t *testing.T) {
 
 	t.Logf("Successfully retrieved latest version: %s (v%s)", server.Name, server.Version)
 
-	// Compare with GetByName to verify we get the latest
-	allVersions, err := client.Servers.GetByName(ctx, serverName)
+	// Compare with ListByName to verify we get the latest
+	allVersions, _, err := client.Servers.ListByName(ctx, serverName)
 	if err != nil {
-		t.Fatalf("GetByName returned error: %v", err)
+		t.Fatalf("ListByName returned error: %v", err)
 	}
 
 	if len(allVersions) > 1 {
 		t.Logf("Server has %d versions total", len(allVersions))
 		// Note: We can't easily verify which is "latest" without version comparison logic
-		// but we can verify that GetLatestByName returned one of the versions
+		// but we can verify that GetByNameLatest returned one of the versions
 		found := false
 		for _, v := range allVersions {
 			if v.Version == server.Version {
@@ -179,7 +179,7 @@ func TestServersService_GetByNameLatest_Integration(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Errorf("GetByNameLatest version %s not found in GetByName results", server.Version)
+			t.Errorf("GetByNameLatest version %s not found in ListByName results", server.Version)
 		}
 	}
 }
@@ -193,7 +193,7 @@ func TestServersService_GetByNameExactVersion_Integration(t *testing.T) {
 	ctx := context.Background()
 
 	// First, get a list to find a server with multiple versions
-	allVersions, err := client.Servers.GetByName(ctx, "io.github.containers/kubernetes-mcp-server")
+	allVersions, _, err := client.Servers.ListByName(ctx, "io.github.containers/kubernetes-mcp-server")
 	if err != nil {
 		t.Fatalf("Failed to get server versions: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestServersService_GetByNameExactVersion_Integration(t *testing.T) {
 	t.Logf("Testing GetByNameExactVersion with server: %s, version: %s", serverName, targetVersion)
 
 	// Get the specific version
-	server, err := client.Servers.GetByNameExactVersion(ctx, serverName, targetVersion)
+	server, _, err := client.Servers.GetByNameExactVersion(ctx, serverName, targetVersion)
 	if err != nil {
 		t.Fatalf("GetByNameExactVersion returned error: %v", err)
 	}
@@ -229,7 +229,7 @@ func TestServersService_GetByNameExactVersion_Integration(t *testing.T) {
 
 	// Test with a non-existent version
 	nonExistentVersion := "999.999.999"
-	server, err = client.Servers.GetByNameExactVersion(ctx, serverName, nonExistentVersion)
+	server, _, err = client.Servers.GetByNameExactVersion(ctx, serverName, nonExistentVersion)
 	if err != nil {
 		t.Fatalf("GetByNameExactVersion returned error for non-existent version: %v", err)
 	}
@@ -254,7 +254,7 @@ func TestServersService_GetByNameLatestActiveVersion_Integration(t *testing.T) {
 	t.Logf("Testing GetByNameLatestActiveVersion with server: %s", serverName)
 
 	// Get the latest active version
-	server, err := client.Servers.GetByNameLatestActiveVersion(ctx, serverName)
+	server, _, err := client.Servers.GetByNameLatestActiveVersion(ctx, serverName)
 	if err != nil {
 		t.Fatalf("GetByNameLatestActiveVersion returned error: %v", err)
 	}
@@ -273,10 +273,10 @@ func TestServersService_GetByNameLatestActiveVersion_Integration(t *testing.T) {
 
 	t.Logf("Successfully retrieved latest active version: %s (v%s) - %s", server.Name, server.Version, server.Status)
 
-	// Compare with GetByName to ensure we got a valid version
-	allVersions, err := client.Servers.GetByName(ctx, serverName)
+	// Compare with ListByName to ensure we got a valid version
+	allVersions, _, err := client.Servers.ListByName(ctx, serverName)
 	if err != nil {
-		t.Fatalf("GetByName returned error: %v", err)
+		t.Fatalf("ListByName returned error: %v", err)
 	}
 
 	if len(allVersions) > 1 {
@@ -291,7 +291,7 @@ func TestServersService_GetByNameLatestActiveVersion_Integration(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Errorf("GetByNameLatestActiveVersion version %s (status: %s) not found in GetByName results", server.Version, server.Status)
+			t.Errorf("GetByNameLatestActiveVersion version %s (status: %s) not found in ListByName results", server.Version, server.Status)
 		}
 
 		// Log all versions for debugging
@@ -303,7 +303,7 @@ func TestServersService_GetByNameLatestActiveVersion_Integration(t *testing.T) {
 
 	// Test with a non-existent server
 	nonExistentServer := "nonexistent/test-server"
-	server, err = client.Servers.GetByNameLatestActiveVersion(ctx, nonExistentServer)
+	server, _, err = client.Servers.GetByNameLatestActiveVersion(ctx, nonExistentServer)
 	if err != nil {
 		t.Fatalf("GetByNameLatestActiveVersion returned error for non-existent server: %v", err)
 	}
@@ -343,7 +343,7 @@ func TestServersService_Pagination_Integration(t *testing.T) {
 	t.Logf("Page 1: Got %d servers", len(page1.Servers))
 
 	// If there's a next page, fetch it
-	if page1.Metadata != nil && page1.Metadata.NextCursor != "" {
+	if page1.Metadata.NextCursor != "" {
 		opts.Cursor = page1.Metadata.NextCursor
 		page2, _, err := client.Servers.List(ctx, opts)
 		if err != nil {
@@ -363,7 +363,7 @@ func TestServersService_Pagination_Integration(t *testing.T) {
 	}
 }
 
-func TestServersService_ListUpdatedSince_Integration(t *testing.T) {
+func TestServersService_ListByUpdatedSince_Integration(t *testing.T) {
 	if os.Getenv("INTEGRATION_TESTS") != "true" {
 		t.Skip("Skipping integration test. Set INTEGRATION_TESTS=true to run.")
 	}
@@ -373,11 +373,11 @@ func TestServersService_ListUpdatedSince_Integration(t *testing.T) {
 
 	// Test with a recent timestamp (last 30 days)
 	since := time.Now().AddDate(0, 0, -30)
-	t.Logf("Testing ListUpdatedSince with timestamp: %s", since.Format(time.RFC3339))
+	t.Logf("Testing ListByUpdatedSince with timestamp: %s", since.Format(time.RFC3339))
 
-	servers, err := client.Servers.ListUpdatedSince(ctx, since)
+	servers, _, err := client.Servers.ListByUpdatedSince(ctx, since)
 	if err != nil {
-		t.Fatalf("ListUpdatedSince returned error: %v", err)
+		t.Fatalf("ListByUpdatedSince returned error: %v", err)
 	}
 
 	t.Logf("Found %d servers updated since %s", len(servers), since.Format("2006-01-02"))
@@ -387,7 +387,7 @@ func TestServersService_ListUpdatedSince_Integration(t *testing.T) {
 		if i < 5 { // Log first 5 for debugging
 			t.Logf("Server %d: %s (v%s) - status: %s", i+1, server.Name, server.Version, server.Status)
 			if server.Meta != nil && server.Meta.Official != nil {
-				t.Logf("  ID: %s, Updated: %s", server.Meta.Official.ID, server.Meta.Official.UpdatedAt.Format(time.RFC3339))
+				t.Logf("  ID: %s, Updated: %s", server.Meta.Official.ServerID, server.Meta.Official.UpdatedAt.Format(time.RFC3339))
 			}
 		}
 
@@ -396,18 +396,18 @@ func TestServersService_ListUpdatedSince_Integration(t *testing.T) {
 			serverUpdatedAt := server.Meta.Official.UpdatedAt
 			if serverUpdatedAt.Before(since) {
 				t.Errorf("Server %s updated_at %s is before since timestamp %s",
-					server.Meta.Official.ID, serverUpdatedAt.Format(time.RFC3339), since.Format(time.RFC3339))
+					server.Meta.Official.ServerID, serverUpdatedAt.Format(time.RFC3339), since.Format(time.RFC3339))
 			}
 		}
 	}
 
 	// Test with a very recent timestamp (last 24 hours)
 	recent := time.Now().AddDate(0, 0, -1)
-	t.Logf("Testing ListUpdatedSince with recent timestamp: %s", recent.Format(time.RFC3339))
+	t.Logf("Testing ListByUpdatedSince with recent timestamp: %s", recent.Format(time.RFC3339))
 
-	recentServers, err := client.Servers.ListUpdatedSince(ctx, recent)
+	recentServers, _, err := client.Servers.ListByUpdatedSince(ctx, recent)
 	if err != nil {
-		t.Fatalf("ListUpdatedSince with recent timestamp returned error: %v", err)
+		t.Fatalf("ListByUpdatedSince with recent timestamp returned error: %v", err)
 	}
 
 	t.Logf("Found %d servers updated in last 24 hours", len(recentServers))
@@ -420,11 +420,11 @@ func TestServersService_ListUpdatedSince_Integration(t *testing.T) {
 
 	// Test with a very old timestamp (should return many servers)
 	old := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	t.Logf("Testing ListUpdatedSince with old timestamp: %s", old.Format(time.RFC3339))
+	t.Logf("Testing ListByUpdatedSince with old timestamp: %s", old.Format(time.RFC3339))
 
-	oldServers, err := client.Servers.ListUpdatedSince(ctx, old)
+	oldServers, _, err := client.Servers.ListByUpdatedSince(ctx, old)
 	if err != nil {
-		t.Fatalf("ListUpdatedSince with old timestamp returned error: %v", err)
+		t.Fatalf("ListByUpdatedSince with old timestamp returned error: %v", err)
 	}
 
 	t.Logf("Found %d servers updated since %s", len(oldServers), old.Format("2006-01-02"))
@@ -437,16 +437,94 @@ func TestServersService_ListUpdatedSince_Integration(t *testing.T) {
 
 	// Test with future timestamp (should return empty)
 	future := time.Now().AddDate(0, 0, 1)
-	t.Logf("Testing ListUpdatedSince with future timestamp: %s", future.Format(time.RFC3339))
+	t.Logf("Testing ListByUpdatedSince with future timestamp: %s", future.Format(time.RFC3339))
 
-	futureServers, err := client.Servers.ListUpdatedSince(ctx, future)
+	futureServers, _, err := client.Servers.ListByUpdatedSince(ctx, future)
 	if err != nil {
-		t.Fatalf("ListUpdatedSince with future timestamp returned error: %v", err)
+		t.Fatalf("ListByUpdatedSince with future timestamp returned error: %v", err)
 	}
 
 	if len(futureServers) > 0 {
 		t.Errorf("Future timestamp should return 0 servers, got %d", len(futureServers))
 	}
 
-	t.Log("Successfully verified ListUpdatedSince with various timestamps")
+	t.Log("Successfully verified ListByUpdatedSince with various timestamps")
+}
+
+func TestServersService_ListByServerID_Integration(t *testing.T) {
+	if os.Getenv("INTEGRATION_TESTS") != "true" {
+		t.Skip("Skipping integration test. Set INTEGRATION_TESTS=true to run.")
+	}
+
+	client := mcp.NewClient(nil)
+	ctx := context.Background()
+
+	// Use a known server that should have multiple versions
+	serverName := "io.github.containers/kubernetes-mcp-server"
+
+	// First, get all versions using ListByName to get a server ID
+	servers, _, err := client.Servers.ListByName(ctx, serverName)
+	if err != nil {
+		t.Fatalf("ListByName returned error: %v", err)
+	}
+
+	if len(servers) == 0 {
+		t.Skip("No servers available for kubernetes-mcp-server to test")
+	}
+
+	// Get the server ID from the metadata (we need this for ListByServerID)
+	if servers[0].Meta == nil || servers[0].Meta.Official == nil {
+		t.Skip("Server metadata not available to get server ID")
+	}
+
+	serverID := servers[0].Meta.Official.ServerID
+	if serverID == "" {
+		t.Skip("Server ID not available in metadata")
+	}
+
+	t.Logf("Testing ListByServerID with server ID: %s (name: %s)", serverID, serverName)
+
+	// Test ListByServerID
+	versions, resp, err := client.Servers.ListByServerID(ctx, serverID)
+	if err != nil {
+		t.Fatalf("ListByServerID returned error: %v", err)
+	}
+
+	if len(versions) == 0 {
+		t.Fatalf("ListByServerID returned no versions for server ID: %s", serverID)
+	}
+
+	t.Logf("Found %d versions for server %s", len(versions), serverName)
+
+	// Verify all returned servers have the same name and different versions
+	expectedName := servers[0].Name
+	versionMap := make(map[string]bool)
+
+	for i, version := range versions {
+		if version.Name != expectedName {
+			t.Errorf("Version %d has wrong name: expected %s, got %s", i, expectedName, version.Name)
+		}
+
+		if versionMap[version.Version] {
+			t.Errorf("Duplicate version found: %s", version.Version)
+		}
+		versionMap[version.Version] = true
+
+		if i < 5 { // Log first 5 versions for debugging
+			t.Logf("Version %d: %s (v%s) - status: %s", i+1, version.Name, version.Version, version.Status)
+		}
+	}
+
+	// Verify ListByServerID returns the same number of versions as ListByName
+	if len(versions) != len(servers) {
+		t.Logf("Warning: ListByServerID returned %d versions, but ListByName returned %d versions", len(versions), len(servers))
+		// This might be expected if the API behavior differs, so just log it as a warning
+	}
+
+	// Show rate limit information
+	if resp.Rate.Limit > 0 {
+		t.Logf("Rate Limit: %d/%d remaining", resp.Rate.Remaining, resp.Rate.Limit)
+	}
+
+	t.Logf("Successfully verified ListByServerID with server ID: %s", serverID)
 }

@@ -146,7 +146,7 @@ for {
     }
 
     // Check for more pages
-    if resp.Metadata == nil || resp.Metadata.NextCursor == "" {
+    if resp.Metadata.NextCursor == "" {
         break
     }
     opts.Cursor = resp.Metadata.NextCursor

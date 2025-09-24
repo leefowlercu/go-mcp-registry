@@ -33,18 +33,23 @@ func (s *ServersService) List(ctx context.Context, opts *ServerListOptions) (*re
 	}
 
 	// Extract NextCursor from the response metadata
-	if servers != nil && servers.Metadata != nil && servers.Metadata.NextCursor != "" {
+	if servers != nil && servers.Metadata.NextCursor != "" {
 		resp.NextCursor = servers.Metadata.NextCursor
 	}
 
 	return servers, resp, nil
 }
 
-// Get retrieves a specific server by its ID.
+// Get retrieves a specific server by its server ID.
+// Optionally specify a version to retrieve a specific version instead of the latest.
 //
-// MCP Registry API docs: https://registry.modelcontextprotocol.io/docs#/servers/get_server_v0_servers__server_id__get
-func (s *ServersService) Get(ctx context.Context, id string) (*registryv0.ServerJSON, *Response, error) {
-	u := fmt.Sprintf("v0/servers/%s", id)
+// MCP Registry API docs: https://registry.modelcontextprotocol.io/docs#/operations/get-server
+func (s *ServersService) Get(ctx context.Context, serverID string, opts *ServerGetOptions) (*registryv0.ServerJSON, *Response, error) {
+	u := fmt.Sprintf("v0/servers/%s", serverID)
+	u, err := addOptions(u, opts)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -60,27 +65,57 @@ func (s *ServersService) Get(ctx context.Context, id string) (*registryv0.Server
 	return server, resp, nil
 }
 
+// ListByServerID retrieves all available versions for a specific server by its server ID.
+// Returns all versions of the server in a slice.
+//
+// MCP Registry API docs: https://registry.modelcontextprotocol.io/docs#/operations/get-server-versions
+func (s *ServersService) ListByServerID(ctx context.Context, serverID string) ([]registryv0.ServerJSON, *Response, error) {
+	u := fmt.Sprintf("v0/servers/%s/versions", serverID)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var serverResp *registryv0.ServerListResponse
+	resp, err := s.client.Do(ctx, req, &serverResp)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	// Extract servers from the response
+	var servers []registryv0.ServerJSON
+	if serverResp != nil && serverResp.Servers != nil {
+		servers = serverResp.Servers
+	}
+
+	return servers, resp, nil
+}
+
 // ListAll fetches all pages of results for servers.
 // This is a convenience method that handles pagination automatically.
-func (s *ServersService) ListAll(ctx context.Context, opts *ServerListOptions) ([]registryv0.ServerJSON, error) {
+func (s *ServersService) ListAll(ctx context.Context, opts *ServerListOptions) ([]registryv0.ServerJSON, *Response, error) {
 	if opts == nil {
 		opts = &ServerListOptions{}
 	}
 
 	var allServers []registryv0.ServerJSON
+	var lastResp *Response
 
 	for {
-		resp, _, err := s.List(ctx, opts)
+		resp, httpResp, err := s.List(ctx, opts)
 		if err != nil {
-			return allServers, err
+			return allServers, httpResp, err
 		}
+
+		lastResp = httpResp
 
 		if resp.Servers != nil {
 			allServers = append(allServers, resp.Servers...)
 		}
 
 		// Check if there are more pages
-		if resp.Metadata == nil || resp.Metadata.NextCursor == "" {
+		if resp.Metadata.NextCursor == "" {
 			break
 		}
 
@@ -88,14 +123,14 @@ func (s *ServersService) ListAll(ctx context.Context, opts *ServerListOptions) (
 		opts.Cursor = resp.Metadata.NextCursor
 	}
 
-	return allServers, nil
+	return allServers, lastResp, nil
 }
 
-// GetByName retrieves all servers with the specified name.
+// ListByName retrieves all servers with the specified name.
 // Since each server can have multiple versions in the registry,
 // this method returns a slice containing all matching servers.
 // Returns an empty slice if no matches are found.
-func (s *ServersService) GetByName(ctx context.Context, name string) ([]registryv0.ServerJSON, error) {
+func (s *ServersService) ListByName(ctx context.Context, name string) ([]registryv0.ServerJSON, *Response, error) {
 	opts := &ServerListOptions{
 		Search: name,
 		ListOptions: ListOptions{
@@ -104,12 +139,15 @@ func (s *ServersService) GetByName(ctx context.Context, name string) ([]registry
 	}
 
 	var matchingServers []registryv0.ServerJSON
+	var lastResp *Response
 
 	for {
-		resp, _, err := s.List(ctx, opts)
+		resp, httpResp, err := s.List(ctx, opts)
 		if err != nil {
-			return nil, err
+			return nil, httpResp, err
 		}
+
+		lastResp = httpResp
 
 		// Collect all exact matches
 		for _, server := range resp.Servers {
@@ -119,21 +157,21 @@ func (s *ServersService) GetByName(ctx context.Context, name string) ([]registry
 		}
 
 		// Check if there are more pages
-		if resp.Metadata == nil || resp.Metadata.NextCursor == "" {
+		if resp.Metadata.NextCursor == "" {
 			break
 		}
 
 		opts.Cursor = resp.Metadata.NextCursor
 	}
 
-	return matchingServers, nil
+	return matchingServers, lastResp, nil
 }
 
 // GetByNameLatest retrieves the latest version of a server with the specified name.
 // This method uses the version=latest query parameter to filter results to only
 // the latest version, then returns the match.
 // Returns nil if no latest version is found.
-func (s *ServersService) GetByNameLatest(ctx context.Context, name string) (*registryv0.ServerJSON, error) {
+func (s *ServersService) GetByNameLatest(ctx context.Context, name string) (*registryv0.ServerJSON, *Response, error) {
 	opts := &ServerListOptions{
 		Search:  name,
 		Version: "latest",
@@ -142,35 +180,39 @@ func (s *ServersService) GetByNameLatest(ctx context.Context, name string) (*reg
 		},
 	}
 
+	var lastResp *Response
+
 	for {
-		resp, _, err := s.List(ctx, opts)
+		resp, httpResp, err := s.List(ctx, opts)
 		if err != nil {
-			return nil, err
+			return nil, httpResp, err
 		}
+
+		lastResp = httpResp
 
 		// Look for exact match
 		for _, server := range resp.Servers {
 			if server.Name == name {
-				return &server, nil
+				return &server, lastResp, nil
 			}
 		}
 
 		// Check if there are more pages
-		if resp.Metadata == nil || resp.Metadata.NextCursor == "" {
+		if resp.Metadata.NextCursor == "" {
 			break
 		}
 
 		opts.Cursor = resp.Metadata.NextCursor
 	}
 
-	return nil, nil
+	return nil, lastResp, nil
 }
 
 // GetByNameExactVersion retrieves a specific version of a server with the specified name.
 // Since the API only supports version="latest", this method performs client-side
 // filtering to find the exact name and version match.
 // Returns nil if no matching version is found.
-func (s *ServersService) GetByNameExactVersion(ctx context.Context, name, version string) (*registryv0.ServerJSON, error) {
+func (s *ServersService) GetByNameExactVersion(ctx context.Context, name, version string) (*registryv0.ServerJSON, *Response, error) {
 	opts := &ServerListOptions{
 		Search: name,
 		ListOptions: ListOptions{
@@ -178,35 +220,39 @@ func (s *ServersService) GetByNameExactVersion(ctx context.Context, name, versio
 		},
 	}
 
+	var lastResp *Response
+
 	for {
-		resp, _, err := s.List(ctx, opts)
+		resp, httpResp, err := s.List(ctx, opts)
 		if err != nil {
-			return nil, err
+			return nil, httpResp, err
 		}
+
+		lastResp = httpResp
 
 		// Look for exact name and version match
 		for _, server := range resp.Servers {
 			if server.Name == name && server.Version == version {
-				return &server, nil
+				return &server, lastResp, nil
 			}
 		}
 
 		// Check if there are more pages
-		if resp.Metadata == nil || resp.Metadata.NextCursor == "" {
+		if resp.Metadata.NextCursor == "" {
 			break
 		}
 
 		opts.Cursor = resp.Metadata.NextCursor
 	}
 
-	return nil, nil
+	return nil, lastResp, nil
 }
 
 // GetByNameLatestActiveVersion retrieves the latest active version of a server with the specified name.
 // This method performs client-side filtering to find servers with Status == "active",
 // then uses semantic version comparison to determine the latest version.
 // Returns nil if no active versions are found.
-func (s *ServersService) GetByNameLatestActiveVersion(ctx context.Context, name string) (*registryv0.ServerJSON, error) {
+func (s *ServersService) GetByNameLatestActiveVersion(ctx context.Context, name string) (*registryv0.ServerJSON, *Response, error) {
 	opts := &ServerListOptions{
 		Search: name,
 		ListOptions: ListOptions{
@@ -216,12 +262,15 @@ func (s *ServersService) GetByNameLatestActiveVersion(ctx context.Context, name 
 
 	var latestServer *registryv0.ServerJSON
 	var latestVersion *semver.Version
+	var lastResp *Response
 
 	for {
-		resp, _, err := s.List(ctx, opts)
+		resp, httpResp, err := s.List(ctx, opts)
 		if err != nil {
-			return nil, err
+			return nil, httpResp, err
 		}
+
+		lastResp = httpResp
 
 		// Look for active servers with exact name match
 		for _, server := range resp.Servers {
@@ -243,21 +292,21 @@ func (s *ServersService) GetByNameLatestActiveVersion(ctx context.Context, name 
 		}
 
 		// Check if there are more pages
-		if resp.Metadata == nil || resp.Metadata.NextCursor == "" {
+		if resp.Metadata.NextCursor == "" {
 			break
 		}
 
 		opts.Cursor = resp.Metadata.NextCursor
 	}
 
-	return latestServer, nil
+	return latestServer, lastResp, nil
 }
 
-// ListUpdatedSince retrieves all servers that have been updated since the specified timestamp.
+// ListByUpdatedSince retrieves all servers that have been updated since the specified timestamp.
 // This method automatically handles pagination to return all matching servers.
 // The timestamp should be in RFC3339 format.
 // Returns an empty slice if no servers have been updated since the timestamp.
-func (s *ServersService) ListUpdatedSince(ctx context.Context, since time.Time) ([]registryv0.ServerJSON, error) {
+func (s *ServersService) ListByUpdatedSince(ctx context.Context, since time.Time) ([]registryv0.ServerJSON, *Response, error) {
 	opts := &ServerListOptions{
 		UpdatedSince: &since,
 		ListOptions: ListOptions{
@@ -266,24 +315,27 @@ func (s *ServersService) ListUpdatedSince(ctx context.Context, since time.Time) 
 	}
 
 	var updatedServers []registryv0.ServerJSON
+	var lastResp *Response
 
 	for {
-		resp, _, err := s.List(ctx, opts)
+		resp, httpResp, err := s.List(ctx, opts)
 		if err != nil {
-			return updatedServers, err
+			return updatedServers, httpResp, err
 		}
+
+		lastResp = httpResp
 
 		if resp.Servers != nil {
 			updatedServers = append(updatedServers, resp.Servers...)
 		}
 
 		// Check if there are more pages
-		if resp.Metadata == nil || resp.Metadata.NextCursor == "" {
+		if resp.Metadata.NextCursor == "" {
 			break
 		}
 
 		opts.Cursor = resp.Metadata.NextCursor
 	}
 
-	return updatedServers, nil
+	return updatedServers, lastResp, nil
 }

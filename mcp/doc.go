@@ -61,32 +61,41 @@
 //
 // Get a specific server by ID:
 //
-//	server, resp, err := client.Servers.Get(context.Background(), "server-uuid")
+//	server, resp, err := client.Servers.Get(context.Background(), "server-uuid", nil)
 //
-// Get servers by name (returns all versions):
+// Get a specific version of a server by ID:
 //
-//	servers, err := client.Servers.GetByName(context.Background(), "ai.waystation/gmail")
+//	opts := &mcp.ServerGetOptions{Version: "1.0.0"}
+//	server, resp, err := client.Servers.Get(context.Background(), "server-uuid", opts)
+//
+// List all versions of a server by ID:
+//
+//	versions, resp, err := client.Servers.ListByServerID(context.Background(), "server-uuid")
+//
+// List servers by name (returns all versions):
+//
+//	servers, _, err := client.Servers.ListByName(context.Background(), "ai.waystation/gmail")
 //	if len(servers) > 0 {
 //		fmt.Printf("Found %d versions of %s\n", len(servers), servers[0].Name)
 //	}
 //
 // Get latest version of a server by name:
 //
-//	server, err := client.Servers.GetByNameLatest(context.Background(), "ai.waystation/gmail")
+//	server, _, err := client.Servers.GetByNameLatest(context.Background(), "ai.waystation/gmail")
 //	if server != nil {
 //		fmt.Printf("Latest version: %s (v%s)\n", server.Name, server.Version)
 //	}
 //
 // Get specific version of a server by name:
 //
-//	server, err := client.Servers.GetByNameExactVersion(context.Background(), "ai.waystation/gmail", "0.3.1")
+//	server, _, err := client.Servers.GetByNameExactVersion(context.Background(), "ai.waystation/gmail", "0.3.1")
 //	if server != nil {
 //		fmt.Printf("Found version: %s (v%s)\n", server.Name, server.Version)
 //	}
 //
 // Get latest active version of a server by name (semantic version comparison):
 //
-//	server, err := client.Servers.GetByNameLatestActiveVersion(context.Background(), "ai.waystation/gmail")
+//	server, _, err := client.Servers.GetByNameLatestActiveVersion(context.Background(), "ai.waystation/gmail")
 //	if server != nil {
 //		fmt.Printf("Latest active: %s (v%s) - %s\n", server.Name, server.Version, server.Status)
 //	}
@@ -94,7 +103,7 @@
 // Get servers updated since a specific timestamp:
 //
 //	since := time.Now().AddDate(0, 0, -7) // Last 7 days
-//	servers, err := client.Servers.ListUpdatedSince(context.Background(), since)
+//	servers, _, err := client.Servers.ListByUpdatedSince(context.Background(), since)
 //	if err == nil {
 //		fmt.Printf("Found %d servers updated since %s\n", len(servers), since.Format("2006-01-02"))
 //		for _, server := range servers {
@@ -121,7 +130,7 @@
 //		}
 //		allServers = append(allServers, resp.Servers...)
 //
-//		if resp.Metadata == nil || resp.Metadata.NextCursor == "" {
+//		if resp.Metadata.NextCursor == "" {
 //			break // No more pages
 //		}
 //		opts.Cursor = resp.Metadata.NextCursor
@@ -129,7 +138,7 @@
 //
 // Or use the convenience method to fetch all pages automatically:
 //
-//	servers, err := client.Servers.ListAll(context.Background(), nil)
+//	servers, _, err := client.Servers.ListAll(context.Background(), nil)
 //
 // # Error Handling
 //
@@ -172,12 +181,14 @@
 //
 //	// ServersService methods
 //	List(ctx, opts) (*ServerListResponse, *Response, error)
-//	Get(ctx, id) (*ServerJSON, *Response, error)
-//	ListAll(ctx, opts) ([]ServerJSON, error)              // Helper
-//	GetByName(ctx, name) ([]ServerJSON, error)            // Helper - returns all versions
-//	GetByNameLatest(ctx, name) (*ServerJSON, error)       // Helper - returns latest version
-//	GetByNameExactVersion(ctx, name, version) (*ServerJSON, error) // Helper - returns specific version
-//	GetByNameLatestActiveVersion(ctx, name) (*ServerJSON, error) // Helper - latest active by semver
+//	Get(ctx, serverID, opts) (*ServerJSON, *Response, error)
+//	ListByServerID(ctx, serverID) ([]ServerJSON, *Response, error)
+//	ListAll(ctx, opts) ([]ServerJSON, *Response, error)                     // Helper
+//	ListByName(ctx, name) ([]ServerJSON, *Response, error)                  // Helper - returns all versions
+//	ListByUpdatedSince(ctx, since) ([]ServerJSON, *Response, error)           // Helper - returns servers updated since timestamp
+//	GetByNameLatest(ctx, name) (*ServerJSON, *Response, error)              // Helper - returns latest version
+//	GetByNameExactVersion(ctx, name, version) (*ServerJSON, *Response, error)     // Helper - returns specific version
+//	GetByNameLatestActiveVersion(ctx, name) (*ServerJSON, *Response, error)       // Helper - latest active by semver
 //
 // # Type Reuse
 //

@@ -68,7 +68,7 @@ func main() {
 	}
 
 	fmt.Println("Fetching all MCP-related servers...")
-	servers, err := client.Servers.ListAll(context.Background(), searchOpts)
+	servers, _, err := client.Servers.ListAll(context.Background(), searchOpts)
 	if err != nil {
 		log.Fatal(err)
 	}

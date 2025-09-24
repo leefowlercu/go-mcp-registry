@@ -92,3 +92,11 @@ type ServerListOptions struct {
 	// Version filter (supports "latest" for latest versions only)
 	Version string `url:"version,omitempty"`
 }
+
+// ServerGetOptions specifies the optional parameters to the
+// ServersService.Get method.
+type ServerGetOptions struct {
+	// Version specifies the specific version to retrieve.
+	// If not specified, returns the latest version.
+	Version string `url:"version,omitempty"`
+}
