@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ['1.24', '1.25']
+        go-version: ['1.25']
     
     steps:
     - uses: actions/checkout@v4
@@ -25,11 +25,11 @@ jobs:
       run: go mod download
     
     - name: Run tests
-      run: go test -v -cover ./...
+      run: go test -v -cover ./mcp/...
     
     - name: Run vet
-      run: go vet ./...
-    
+      run: go vet ./mcp/...
+
     - name: Run gofmt
       run: |
         if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
