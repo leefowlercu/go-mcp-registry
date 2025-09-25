@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-09-25
+
+### Changed
+- Updated README.md documentation to reflect current API signatures
+- Fixed outdated method examples in Quick Start and Usage Guide sections
+- Updated API Methods Reference table with complete method list
+- Corrected all code examples to include `*Response` return values
+
+### Fixed
+- Documentation inconsistencies with actual API methods
+- Missing methods in API reference table (ListByServerID, ListByUpdatedSince)
 
 ## [0.3.0] - 2025-09-24
 
@@ -151,6 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Memory-efficient handling of large result sets
 - Optional automatic pagination for convenience
 
+[0.4.0]: https://github.com/leefowlercu/go-mcp-registry/releases/tag/v0.4.0
 [0.3.0]: https://github.com/leefowlercu/go-mcp-registry/releases/tag/v0.3.0
 [0.2.0]: https://github.com/leefowlercu/go-mcp-registry/releases/tag/v0.2.0
 [0.1.0]: https://github.com/leefowlercu/go-mcp-registry/releases/tag/v0.1.0

@@ -60,7 +60,7 @@ func main() {
     }
 
     // Get a specific server by name
-    gmailServers, err := client.Servers.GetByName(ctx, "ai.waystation/gmail")
+    gmailServers, _, err := client.Servers.ListByName(ctx, "ai.waystation/gmail")
     if err != nil {
         log.Fatal(err)
     }
@@ -108,23 +108,23 @@ opts := &mcp.ServerListOptions{
 servers, resp, err := client.Servers.List(ctx, opts)
 
 // Get all servers (handles pagination automatically)
-allServers, err := client.Servers.ListAll(ctx, nil)
+allServers, _, err := client.Servers.ListAll(ctx, nil)
 ```
 
 ### Getting Servers by Name
 
 ```go
 // Get all versions of a server
-servers, err := client.Servers.GetByName(ctx, "ai.waystation/gmail")
+servers, _, err := client.Servers.ListByName(ctx, "ai.waystation/gmail")
 
 // Get latest version only
-server, err := client.Servers.GetByNameLatest(ctx, "ai.waystation/gmail")
+server, _, err := client.Servers.GetByNameLatest(ctx, "ai.waystation/gmail")
 
 // Get specific version
-server, err := client.Servers.GetByNameExactVersion(ctx, "ai.waystation/gmail", "0.3.1")
+server, _, err := client.Servers.GetByNameExactVersion(ctx, "ai.waystation/gmail", "0.3.1")
 
 // Get latest active version (uses semantic versioning)
-server, err := client.Servers.GetByNameLatestActiveVersion(ctx, "ai.waystation/gmail")
+server, _, err := client.Servers.GetByNameLatestActiveVersion(ctx, "ai.waystation/gmail")
 ```
 
 ### Manual Pagination
@@ -184,9 +184,11 @@ if resp.Rate.Limit > 0 {
 | Method | Description |
 |--------|-------------|
 | `List(ctx, opts)` | List servers with pagination and filtering |
-| `Get(ctx, id)` | Get server by ID |
+| `Get(ctx, serverID, opts)` | Get server by ID with optional version |
 | `ListAll(ctx, opts)` | Get all servers (automatic pagination) |
-| `GetByName(ctx, name)` | Get all versions of a named server |
+| `ListByName(ctx, name)` | Get all versions of a named server |
+| `ListByServerID(ctx, serverID)` | Get all versions of a server by server ID |
+| `ListByUpdatedSince(ctx, since)` | Get servers updated since timestamp |
 | `GetByNameLatest(ctx, name)` | Get latest version using API filter |
 | `GetByNameExactVersion(ctx, name, version)` | Get specific version |
 | `GetByNameLatestActiveVersion(ctx, name)` | Get latest active version by semver |
@@ -223,7 +225,7 @@ go test -cover ./...
 INTEGRATION_TESTS=true go test ./test/integration/
 
 # Specific test
-go test -v ./mcp -run TestServersService_GetByName
+go test -v ./mcp -run TestServersService_ListByName
 ```
 
 ### Building
