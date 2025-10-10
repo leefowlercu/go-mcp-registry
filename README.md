@@ -59,8 +59,8 @@ func main() {
         fmt.Printf("- %s (v%s): %s\n", server.Name, server.Version, server.Description)
     }
 
-    // Get a specific server by name
-    gmailServers, _, err := client.Servers.ListByName(ctx, "ai.waystation/gmail")
+    // Get all versions of a server by name
+    gmailServers, _, err := client.Servers.ListVersionsByName(ctx, "ai.waystation/gmail")
     if err != nil {
         log.Fatal(err)
     }
@@ -114,8 +114,8 @@ allServers, _, err := client.Servers.ListAll(ctx, nil)
 ### Getting Servers by Name
 
 ```go
-// Get all versions of a server
-servers, _, err := client.Servers.ListByName(ctx, "ai.waystation/gmail")
+// Get all versions of a server by name
+servers, _, err := client.Servers.ListVersionsByName(ctx, "ai.waystation/gmail")
 
 // Get latest version only
 server, _, err := client.Servers.GetByNameLatest(ctx, "ai.waystation/gmail")
@@ -184,13 +184,12 @@ if resp.Rate.Limit > 0 {
 | Method | Description |
 |--------|-------------|
 | `List(ctx, opts)` | List servers with pagination and filtering |
-| `Get(ctx, serverID, opts)` | Get server by ID with optional version |
+| `Get(ctx, serverName, opts)` | Get server by name with optional version |
 | `ListAll(ctx, opts)` | Get all servers (automatic pagination) |
-| `ListByName(ctx, name)` | Get all versions of a named server |
-| `ListByServerID(ctx, serverID)` | Get all versions of a server by server ID |
+| `ListVersionsByName(ctx, name)` | Get all versions of a server by name |
 | `ListByUpdatedSince(ctx, since)` | Get servers updated since timestamp |
 | `GetByNameLatest(ctx, name)` | Get latest version using API filter |
-| `GetByNameExactVersion(ctx, name, version)` | Get specific version |
+| `GetByNameExactVersion(ctx, name, version)` | Get specific version via dedicated endpoint |
 | `GetByNameLatestActiveVersion(ctx, name)` | Get latest active version by semver |
 
 For detailed documentation, see the [Go Reference](https://pkg.go.dev/github.com/leefowlercu/go-mcp-registry).
@@ -200,7 +199,7 @@ For detailed documentation, see the [Go Reference](https://pkg.go.dev/github.com
 This repository includes working examples in the `examples/` directory:
 
 - **[examples/list/](examples/list/)** - List servers with basic options
-- **[examples/get/](examples/get/)** - Get server details by ID or name
+- **[examples/get/](examples/get/)** - Get server details by name
 - **[examples/paginate/](examples/paginate/)** - Manual and automatic pagination
 
 Run examples:
@@ -225,7 +224,7 @@ go test -cover ./...
 INTEGRATION_TESTS=true go test ./test/integration/
 
 # Specific test
-go test -v ./mcp -run TestServersService_ListByName
+go test -v ./mcp -run TestServersService_ListVersionsByName
 ```
 
 ### Building

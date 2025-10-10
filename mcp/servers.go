@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -40,12 +41,16 @@ func (s *ServersService) List(ctx context.Context, opts *ServerListOptions) (*re
 	return servers, resp, nil
 }
 
-// Get retrieves a specific server by its server ID.
+// Get retrieves a specific server by its server name.
 // Optionally specify a version to retrieve a specific version instead of the latest.
 //
+// Server names contain forward slashes (e.g., "ai.waystation/gmail") and will be URL-encoded automatically.
+//
 // MCP Registry API docs: https://registry.modelcontextprotocol.io/docs#/operations/get-server
-func (s *ServersService) Get(ctx context.Context, serverID string, opts *ServerGetOptions) (*registryv0.ServerJSON, *Response, error) {
-	u := fmt.Sprintf("v0/servers/%s", serverID)
+func (s *ServersService) Get(ctx context.Context, serverName string, opts *ServerGetOptions) (*registryv0.ServerJSON, *Response, error) {
+	// URL-encode the server name to handle forward slashes
+	encodedName := url.PathEscape(serverName)
+	u := fmt.Sprintf("v0/servers/%s", encodedName)
 	u, err := addOptions(u, opts)
 	if err != nil {
 		return nil, nil, err
@@ -56,21 +61,30 @@ func (s *ServersService) Get(ctx context.Context, serverID string, opts *ServerG
 		return nil, nil, err
 	}
 
-	var server *registryv0.ServerJSON
-	resp, err := s.client.Do(ctx, req, &server)
+	var serverResp *registryv0.ServerResponse
+	resp, err := s.client.Do(ctx, req, &serverResp)
 	if err != nil {
 		return nil, resp, err
 	}
 
-	return server, resp, nil
+	// Unwrap ServerResponse to get the ServerJSON
+	if serverResp == nil {
+		return nil, resp, nil
+	}
+
+	return &serverResp.Server, resp, nil
 }
 
-// ListByServerID retrieves all available versions for a specific server by its server ID.
+// ListVersionsByName retrieves all available versions for a specific server by its server name.
 // Returns all versions of the server in a slice.
 //
+// Server names contain forward slashes (e.g., "ai.waystation/gmail") and will be URL-encoded automatically.
+//
 // MCP Registry API docs: https://registry.modelcontextprotocol.io/docs#/operations/get-server-versions
-func (s *ServersService) ListByServerID(ctx context.Context, serverID string) ([]registryv0.ServerJSON, *Response, error) {
-	u := fmt.Sprintf("v0/servers/%s/versions", serverID)
+func (s *ServersService) ListVersionsByName(ctx context.Context, serverName string) ([]registryv0.ServerJSON, *Response, error) {
+	// URL-encode the server name to handle forward slashes
+	encodedName := url.PathEscape(serverName)
+	u := fmt.Sprintf("v0/servers/%s/versions", encodedName)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -83,10 +97,13 @@ func (s *ServersService) ListByServerID(ctx context.Context, serverID string) ([
 		return nil, resp, err
 	}
 
-	// Extract servers from the response
+	// Extract servers from the response, unwrapping ServerResponse to ServerJSON
 	var servers []registryv0.ServerJSON
 	if serverResp != nil && serverResp.Servers != nil {
-		servers = serverResp.Servers
+		servers = make([]registryv0.ServerJSON, len(serverResp.Servers))
+		for i, serverResponse := range serverResp.Servers {
+			servers[i] = serverResponse.Server
+		}
 	}
 
 	return servers, resp, nil
@@ -110,8 +127,11 @@ func (s *ServersService) ListAll(ctx context.Context, opts *ServerListOptions) (
 
 		lastResp = httpResp
 
+		// Unwrap ServerResponse to ServerJSON for each server
 		if resp.Servers != nil {
-			allServers = append(allServers, resp.Servers...)
+			for _, serverResponse := range resp.Servers {
+				allServers = append(allServers, serverResponse.Server)
+			}
 		}
 
 		// Check if there are more pages
@@ -149,10 +169,10 @@ func (s *ServersService) ListByName(ctx context.Context, name string) ([]registr
 
 		lastResp = httpResp
 
-		// Collect all exact matches
-		for _, server := range resp.Servers {
-			if server.Name == name {
-				matchingServers = append(matchingServers, server)
+		// Collect all exact matches, unwrapping ServerResponse to ServerJSON
+		for _, serverResponse := range resp.Servers {
+			if serverResponse.Server.Name == name {
+				matchingServers = append(matchingServers, serverResponse.Server)
 			}
 		}
 
@@ -190,10 +210,10 @@ func (s *ServersService) GetByNameLatest(ctx context.Context, name string) (*reg
 
 		lastResp = httpResp
 
-		// Look for exact match
-		for _, server := range resp.Servers {
-			if server.Name == name {
-				return &server, lastResp, nil
+		// Look for exact match, unwrapping ServerResponse to ServerJSON
+		for _, serverResponse := range resp.Servers {
+			if serverResponse.Server.Name == name {
+				return &serverResponse.Server, lastResp, nil
 			}
 		}
 
@@ -209,43 +229,35 @@ func (s *ServersService) GetByNameLatest(ctx context.Context, name string) (*reg
 }
 
 // GetByNameExactVersion retrieves a specific version of a server with the specified name.
-// Since the API only supports version="latest", this method performs client-side
-// filtering to find the exact name and version match.
+// This method uses the dedicated API endpoint for retrieving a specific version,
+// providing significantly better performance than the previous client-side filtering approach.
+//
+// Server names contain forward slashes (e.g., "ai.waystation/gmail") and will be URL-encoded automatically.
+//
 // Returns nil if no matching version is found.
 func (s *ServersService) GetByNameExactVersion(ctx context.Context, name, version string) (*registryv0.ServerJSON, *Response, error) {
-	opts := &ServerListOptions{
-		Search: name,
-		ListOptions: ListOptions{
-			Limit: 100,
-		},
+	// URL-encode the server name and version to handle forward slashes and special characters
+	encodedName := url.PathEscape(name)
+	encodedVersion := url.PathEscape(version)
+	u := fmt.Sprintf("v0/servers/%s/versions/%s", encodedName, encodedVersion)
+
+	req, err := s.client.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	var lastResp *Response
-
-	for {
-		resp, httpResp, err := s.List(ctx, opts)
-		if err != nil {
-			return nil, httpResp, err
-		}
-
-		lastResp = httpResp
-
-		// Look for exact name and version match
-		for _, server := range resp.Servers {
-			if server.Name == name && server.Version == version {
-				return &server, lastResp, nil
-			}
-		}
-
-		// Check if there are more pages
-		if resp.Metadata.NextCursor == "" {
-			break
-		}
-
-		opts.Cursor = resp.Metadata.NextCursor
+	var serverResp *registryv0.ServerResponse
+	resp, err := s.client.Do(ctx, req, &serverResp)
+	if err != nil {
+		return nil, resp, err
 	}
 
-	return nil, lastResp, nil
+	// Unwrap ServerResponse to get the ServerJSON
+	if serverResp == nil {
+		return nil, resp, nil
+	}
+
+	return &serverResp.Server, resp, nil
 }
 
 // GetByNameLatestActiveVersion retrieves the latest active version of a server with the specified name.
@@ -273,10 +285,16 @@ func (s *ServersService) GetByNameLatestActiveVersion(ctx context.Context, name 
 		lastResp = httpResp
 
 		// Look for active servers with exact name match
-		for _, server := range resp.Servers {
-			if server.Name == name && server.Status == model.StatusActive {
+		// Note: Status has moved from ServerJSON to ServerResponse.Meta.Official.Status
+		for _, serverResponse := range resp.Servers {
+			// Check if server has official metadata with status
+			if serverResponse.Meta.Official == nil {
+				continue
+			}
+
+			if serverResponse.Server.Name == name && serverResponse.Meta.Official.Status == model.StatusActive {
 				// Try to parse the version as semantic version
-				version, err := semver.NewVersion(server.Version)
+				version, err := semver.NewVersion(serverResponse.Server.Version)
 				if err != nil {
 					// Skip servers with invalid semantic versions
 					continue
@@ -285,7 +303,7 @@ func (s *ServersService) GetByNameLatestActiveVersion(ctx context.Context, name 
 				// Keep track of the latest version
 				if latestVersion == nil || version.GreaterThan(latestVersion) {
 					latestVersion = version
-					serverCopy := server // Create a copy to avoid pointer issues
+					serverCopy := serverResponse.Server // Create a copy to avoid pointer issues
 					latestServer = &serverCopy
 				}
 			}
@@ -325,8 +343,11 @@ func (s *ServersService) ListByUpdatedSince(ctx context.Context, since time.Time
 
 		lastResp = httpResp
 
+		// Unwrap ServerResponse to ServerJSON for each server
 		if resp.Servers != nil {
-			updatedServers = append(updatedServers, resp.Servers...)
+			for _, serverResponse := range resp.Servers {
+				updatedServers = append(updatedServers, serverResponse.Server)
+			}
 		}
 
 		// Check if there are more pages

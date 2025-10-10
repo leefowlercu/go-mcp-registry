@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-10-10
+
+### Changed
+- **BREAKING**: Updated for MCP Registry API v2 migration (2025-09-29)
+- **BREAKING**: `Get()` method parameter changed from `serverID` to `serverName` - all endpoints now use server names instead of UUIDs
+- **BREAKING**: `ListByServerID()` method renamed to `ListVersionsByName()` to reflect name-based endpoint
+- **BREAKING**: Response schema changes:
+  - `ServerListResponse.Servers` changed from `[]ServerJSON` to `[]ServerResponse`
+  - `ServerResponse` now wraps `ServerJSON` with metadata: `{Server: ServerJSON, Meta: ResponseMeta}`
+  - Status field moved from `ServerJSON` to `ServerResponse.Meta.Official.Status`
+  - ServerID field completely removed from API
+- **BREAKING**: `GetByNameExactVersion()` now uses dedicated API endpoint `GET /v0/servers/{serverName}/versions/{version}` instead of client-side filtering (performance improvement)
+- Updated `github.com/modelcontextprotocol/registry` dependency from v1.1.0 to v1.2.3
+- Updated all unit tests for new response schema with ServerResponse wrapper
+- Updated all integration tests for name-based endpoints and removed Status field assertions
+- Updated all examples to use server names instead of server IDs
+- Updated all documentation (README.md, CLAUDE.md, doc.go) with new method signatures and API v2 migration notes
+- Fixed pagination tests to use camelCase JSON field names (`nextCursor` instead of `next_cursor`)
+
+### Removed
+- **BREAKING**: ServerID-based server retrieval - all operations now require server names (e.g., "ai.waystation/gmail")
+- **BREAKING**: Direct access to Status field on `ServerJSON` - Status is now only available through `ServerResponse.Meta.Official.Status`
+
+### Fixed
+- URL encoding for server names containing forward slashes
+- Response metadata handling for v1.2.3 schema changes
+- Test assertions updated to work with unwrapped ServerJSON objects
+
+### Migration Guide
+- Replace `client.Servers.Get(ctx, serverID, opts)` with `client.Servers.Get(ctx, serverName, opts)` where `serverName` is in format "publisher/server"
+- Replace `client.Servers.ListByServerID(ctx, serverID)` with `client.Servers.ListVersionsByName(ctx, serverName)`
+- Update code accessing `ServerListResponse.Servers[i].Name` to `ServerListResponse.Servers[i].Server.Name` (ServerResponse wrapper)
+- Remove code accessing `ServerJSON.Status` field - Status is not accessible from unwrapped ServerJSON objects
+- Remove code accessing `ServerJSON.Meta.Official` - registry metadata is only in `ServerResponse.Meta.Official`
+- Update server identification from UUIDs to qualified names (e.g., "server-uuid-1234" → "ai.waystation/gmail")
+
 ## [0.4.0] - 2025-09-25
 
 ### Changed

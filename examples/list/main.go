@@ -26,8 +26,8 @@ func main() {
 	}
 
 	fmt.Printf("Found %d servers\n", len(resp.Servers))
-	for _, server := range resp.Servers {
-		fmt.Printf("- %s (v%s): %s\n", server.Name, server.Version, server.Description)
+	for _, serverResponse := range resp.Servers {
+		fmt.Printf("- %s (v%s): %s\n", serverResponse.Server.Name, serverResponse.Server.Version, serverResponse.Server.Description)
 	}
 
 	// Check if there are more pages
@@ -50,7 +50,7 @@ func main() {
 	}
 
 	fmt.Printf("Found %d servers matching 'github'\n", len(searchResp.Servers))
-	for _, server := range searchResp.Servers {
-		fmt.Printf("- %s: %s\n", server.Name, server.Description)
+	for _, serverResponse := range searchResp.Servers {
+		fmt.Printf("- %s: %s\n", serverResponse.Server.Name, serverResponse.Server.Description)
 	}
 }
