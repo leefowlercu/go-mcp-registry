@@ -7,58 +7,36 @@ import (
 	"os"
 
 	mcp "github.com/leefowlercu/go-mcp-registry/mcp"
-	registryv0 "github.com/modelcontextprotocol/registry/pkg/api/v0"
 )
 
 func main() {
-	// Check if server identifier was provided
+	// Check if server name was provided
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go <server-id-or-name>")
-		fmt.Println("\nYou can use either:")
-		fmt.Println("  1. Server ID (from list endpoint)")
-		fmt.Println("  2. Server Name (e.g., 'ai.waystation/gmail')")
+		fmt.Println("Usage: go run main.go <server-name>")
+		fmt.Println("\nExample:")
+		fmt.Println("  go run main.go ai.waystation/gmail")
 		fmt.Println("\nTo see available servers, run:")
 		fmt.Println("  go run ../list/main.go")
 		os.Exit(1)
 	}
 
-	serverIdentifier := os.Args[1]
+	serverName := os.Args[1]
 
 	// Create a client with default settings
 	client := mcp.NewClient(nil)
 	ctx := context.Background()
 
-	var server *registryv0.ServerJSON
-	var resp *mcp.Response
-	var err error
-
-	// Try to get server by ID first (UUID format)
-	fmt.Printf("Getting details for server: %s\n", serverIdentifier)
-	server, resp, err = client.Servers.Get(ctx, serverIdentifier, nil)
-
-	// If that fails with 404, try to get by name
-	if err != nil && resp != nil && resp.StatusCode == 404 {
-		fmt.Printf("Server ID not found, trying by name...\n")
-		servers, _, err := client.Servers.ListByName(ctx, serverIdentifier)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if len(servers) == 0 {
-			fmt.Printf("Server with identifier '%s' not found\n", serverIdentifier)
-			fmt.Println("\nTip: Use 'go run ../list/main.go' to see available servers")
-			os.Exit(1)
-		}
-
-		// If multiple versions found, use the first one (could be enhanced to select latest)
-		server = &servers[0]
-		if len(servers) > 1 {
-			fmt.Printf("Found %d versions of server '%s', using version %s\n", len(servers), serverIdentifier, server.Version)
-		}
-
-		// Create a mock response for consistency
-		resp = &mcp.Response{}
-	} else if err != nil {
+	// Get server by name (API v2 uses names, not IDs)
+	fmt.Printf("Getting details for server: %s\n", serverName)
+	server, resp, err := client.Servers.Get(ctx, serverName, nil)
+	if err != nil {
 		log.Fatal(err)
+	}
+
+	if server == nil {
+		fmt.Printf("Server '%s' not found\n", serverName)
+		fmt.Println("\nTip: Use 'go run ../list/main.go' to see available servers")
+		os.Exit(1)
 	}
 
 	// Display server information
@@ -71,10 +49,8 @@ func main() {
 		fmt.Printf("Repository: %s\n", server.Repository.URL)
 	}
 
-	// Show server status if available
-	if server.Status != "" {
-		fmt.Printf("Status: %s\n", server.Status)
-	}
+	// Note: Status field has been removed from ServerJSON in API v2
+	// Status is now part of registry metadata in ServerResponse.Meta.Official
 
 	// Show remotes (transport configurations)
 	if len(server.Remotes) > 0 {
@@ -105,16 +81,10 @@ func main() {
 		}
 	}
 
-	// Show metadata if available
-	if server.Meta != nil && server.Meta.Official != nil {
-		fmt.Println("\nRegistry Metadata:")
-		fmt.Printf("Server ID: %s\n", server.Meta.Official.ServerID)
-		fmt.Printf("Published: %s\n", server.Meta.Official.PublishedAt.Format("2006-01-02 15:04:05"))
-		if !server.Meta.Official.UpdatedAt.IsZero() {
-			fmt.Printf("Updated: %s\n", server.Meta.Official.UpdatedAt.Format("2006-01-02 15:04:05"))
-		}
-		fmt.Printf("Latest: %t\n", server.Meta.Official.IsLatest)
-	}
+	// Note: Registry metadata (ServerID, PublishedAt, UpdatedAt, IsLatest, Status)
+	// has been moved from ServerJSON.Meta.Official to ServerResponse.Meta.Official in API v2.
+	// Since Get() returns unwrapped ServerJSON, this metadata is not directly accessible here.
+	// To access registry metadata, you would need to use List() which returns ServerResponse.
 
 	// Show rate limit information
 	if resp.Rate.Limit > 0 {

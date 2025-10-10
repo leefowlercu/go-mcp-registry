@@ -42,26 +42,46 @@ func TestServersService_List(t *testing.T) {
 			responseBody: `{
 				"servers": [
 					{
-						"name": "test-server",
-						"version": "1.0.0",
-						"description": "A test server",
-						"repository": {
-							"url": "https://github.com/example/test-server"
+						"server": {
+							"name": "test-server",
+							"version": "1.0.0",
+							"description": "A test server",
+							"repository": {
+								"url": "https://github.com/example/test-server"
+							}
+						},
+						"_meta": {
+							"io.modelcontextprotocol.registry/official": {
+								"status": "active",
+								"publishedAt": "2024-01-01T00:00:00Z",
+								"updatedAt": "2024-01-01T00:00:00Z",
+								"isLatest": true
+							}
 						}
 					}
 				],
 				"metadata": {
-					"next_cursor": "next123"
+					"nextCursor": "next123"
 				}
 			}`,
 			expectedResult: &registryv0.ServerListResponse{
-				Servers: []registryv0.ServerJSON{
+				Servers: []registryv0.ServerResponse{
 					{
-						Name:        "test-server",
-						Version:     "1.0.0",
-						Description: "A test server",
-						Repository: model.Repository{
-							URL: "https://github.com/example/test-server",
+						Server: registryv0.ServerJSON{
+							Name:        "test-server",
+							Version:     "1.0.0",
+							Description: "A test server",
+							Repository: model.Repository{
+								URL: "https://github.com/example/test-server",
+							},
+						},
+						Meta: registryv0.ResponseMeta{
+							Official: &registryv0.RegistryExtensions{
+								Status:      model.StatusActive,
+								PublishedAt: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+								UpdatedAt:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+								IsLatest:    true,
+							},
 						},
 					},
 				},
@@ -81,7 +101,7 @@ func TestServersService_List(t *testing.T) {
 			},
 			responseBody: `{"servers": [], "metadata": {}}`,
 			expectedResult: &registryv0.ServerListResponse{
-				Servers:  []registryv0.ServerJSON{},
+				Servers:  []registryv0.ServerResponse{},
 				Metadata: registryv0.Metadata{},
 			},
 			expectedCursor: "",
@@ -92,7 +112,7 @@ func TestServersService_List(t *testing.T) {
 			expectedQuery: values{},
 			responseBody:  `{"servers": [], "metadata": {}}`,
 			expectedResult: &registryv0.ServerListResponse{
-				Servers:  []registryv0.ServerJSON{},
+				Servers:  []registryv0.ServerResponse{},
 				Metadata: registryv0.Metadata{},
 			},
 			expectedCursor: "",
@@ -130,12 +150,9 @@ func TestServersService_List(t *testing.T) {
 }
 
 func TestServersService_Get(t *testing.T) {
-	publishedAt, _ := time.Parse(time.RFC3339, "2024-01-01T00:00:00Z")
-	updatedAt, _ := time.Parse(time.RFC3339, "2024-01-02T00:00:00Z")
-
 	tests := []struct {
 		name           string
-		serverID       string
+		serverName     string
 		opts           *ServerGetOptions
 		statusCode     int
 		responseBody   string
@@ -144,20 +161,22 @@ func TestServersService_Get(t *testing.T) {
 		expectedErrMsg string
 	}{
 		{
-			name:       "successful get by ID",
-			serverID:   "test-id",
+			name:       "successful get by name",
+			serverName: "test/server",
 			opts:       nil,
 			statusCode: http.StatusOK,
 			responseBody: `{
-				"name": "test-server",
-				"version": "1.0.0",
-				"description": "A test server",
-				"repository": {
-					"url": "https://github.com/example/test-server"
+				"server": {
+					"name": "test-server",
+					"version": "1.0.0",
+					"description": "A test server",
+					"repository": {
+						"url": "https://github.com/example/test-server"
+					}
 				},
 				"_meta": {
 					"io.modelcontextprotocol.registry/official": {
-						"serverId": "test-id",
+						"status": "active",
 						"publishedAt": "2024-01-01T00:00:00Z",
 						"updatedAt": "2024-01-02T00:00:00Z",
 						"isLatest": true
@@ -171,20 +190,12 @@ func TestServersService_Get(t *testing.T) {
 				Repository: model.Repository{
 					URL: "https://github.com/example/test-server",
 				},
-				Meta: &registryv0.ServerMeta{
-					Official: &registryv0.RegistryExtensions{
-						ServerID:    "test-id",
-						PublishedAt: publishedAt,
-						UpdatedAt:   updatedAt,
-						IsLatest:    true,
-					},
-				},
 			},
 			expectError: false,
 		},
 		{
 			name:           "server not found",
-			serverID:       "nonexistent",
+			serverName:     "nonexistent/server",
 			opts:           nil,
 			statusCode:     http.StatusNotFound,
 			responseBody:   `{"message": "Server not found"}`,
@@ -194,22 +205,24 @@ func TestServersService_Get(t *testing.T) {
 		},
 		{
 			name:       "successful get with version parameter",
-			serverID:   "test-id",
+			serverName: "test/server",
 			opts:       &ServerGetOptions{Version: "1.0.0"},
 			statusCode: http.StatusOK,
 			responseBody: `{
-				"name": "test-server",
-				"version": "1.0.0",
-				"description": "A test server with specific version",
-				"repository": {
-					"url": "https://github.com/example/test-server"
+				"server": {
+					"name": "test-server",
+					"version": "1.0.0",
+					"description": "A test server with specific version",
+					"repository": {
+						"url": "https://github.com/example/test-server"
+					}
 				},
 				"_meta": {
 					"io.modelcontextprotocol.registry/official": {
-						"serverId": "test-id",
+						"status": "active",
 						"publishedAt": "2024-01-01T00:00:00Z",
 						"updatedAt": "2024-01-02T00:00:00Z",
-						"is_latest": false
+						"isLatest": false
 					}
 				}
 			}`,
@@ -220,14 +233,7 @@ func TestServersService_Get(t *testing.T) {
 				Repository: model.Repository{
 					URL: "https://github.com/example/test-server",
 				},
-				Meta: &registryv0.ServerMeta{
-					Official: &registryv0.RegistryExtensions{
-						ServerID:    "test-id",
-						PublishedAt: publishedAt,
-						UpdatedAt:   updatedAt,
-						IsLatest:    false,
-					},
-				},
+				// No Meta field - Get() returns unwrapped ServerJSON without registry metadata
 			},
 			expectError: false,
 		},
@@ -238,7 +244,7 @@ func TestServersService_Get(t *testing.T) {
 			client, mux, _, teardown := setup()
 			defer teardown()
 
-			mux.HandleFunc(fmt.Sprintf("/v0/servers/%s", tt.serverID), func(w http.ResponseWriter, r *http.Request) {
+			mux.HandleFunc(fmt.Sprintf("/v0/servers/%s", url.PathEscape(tt.serverName)), func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
 
 				// Check version parameter if specified
@@ -254,7 +260,7 @@ func TestServersService_Get(t *testing.T) {
 			})
 
 			ctx := context.Background()
-			server, resp, err := client.Servers.Get(ctx, tt.serverID, tt.opts)
+			server, resp, err := client.Servers.Get(ctx, tt.serverName, tt.opts)
 
 			if tt.expectError {
 				if err == nil {
@@ -282,13 +288,13 @@ func TestServersService_Get(t *testing.T) {
 	}
 }
 
-func TestServersService_ListByServerID(t *testing.T) {
+func TestServersService_ListVersionsByName(t *testing.T) {
 	client, mux, _, teardown := setup()
 	defer teardown()
 
 	tests := []struct {
 		name          string
-		serverID      string
+		serverName    string
 		statusCode    int
 		responseBody  string
 		expectedCount int
@@ -296,19 +302,33 @@ func TestServersService_ListByServerID(t *testing.T) {
 	}{
 		{
 			name:       "successful list versions",
-			serverID:   "test-server-id",
+			serverName: "test/server",
 			statusCode: http.StatusOK,
 			responseBody: `{
 				"servers": [
 					{
-						"name": "test-server",
-						"version": "1.0.0",
-						"description": "Test server v1.0.0"
+						"server": {
+							"name": "test-server",
+							"version": "1.0.0",
+							"description": "Test server v1.0.0"
+						},
+						"_meta": {
+							"io.modelcontextprotocol.registry/official": {
+								"status": "active"
+							}
+						}
 					},
 					{
-						"name": "test-server",
-						"version": "1.1.0",
-						"description": "Test server v1.1.0"
+						"server": {
+							"name": "test-server",
+							"version": "1.1.0",
+							"description": "Test server v1.1.0"
+						},
+						"_meta": {
+							"io.modelcontextprotocol.registry/official": {
+								"status": "active"
+							}
+						}
 					}
 				],
 				"metadata": {}
@@ -318,7 +338,7 @@ func TestServersService_ListByServerID(t *testing.T) {
 		},
 		{
 			name:       "empty versions list",
-			serverID:   "nonexistent-server",
+			serverName: "nonexistent/server",
 			statusCode: http.StatusOK,
 			responseBody: `{
 				"servers": [],
@@ -329,7 +349,7 @@ func TestServersService_ListByServerID(t *testing.T) {
 		},
 		{
 			name:          "api error",
-			serverID:      "error-server",
+			serverName:    "error/server",
 			statusCode:    http.StatusInternalServerError,
 			responseBody:  `{"message": "Internal server error"}`,
 			expectedCount: 0,
@@ -339,7 +359,7 @@ func TestServersService_ListByServerID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mux.HandleFunc(fmt.Sprintf("/v0/servers/%s/versions", tt.serverID), func(w http.ResponseWriter, r *http.Request) {
+			mux.HandleFunc(fmt.Sprintf("/v0/servers/%s/versions", url.PathEscape(tt.serverName)), func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
 				w.WriteHeader(tt.statusCode)
 				w.Header().Set("Content-Type", "application/json")
@@ -347,7 +367,7 @@ func TestServersService_ListByServerID(t *testing.T) {
 			})
 
 			ctx := context.Background()
-			servers, resp, err := client.Servers.ListByServerID(ctx, tt.serverID)
+			servers, resp, err := client.Servers.ListVersionsByName(ctx, tt.serverName)
 
 			if tt.expectError {
 				if err == nil {
@@ -358,7 +378,7 @@ func TestServersService_ListByServerID(t *testing.T) {
 				}
 			} else {
 				if err != nil {
-					t.Errorf("Servers.ListVersions returned error: %v", err)
+					t.Errorf("Servers.ListVersionsByName returned error: %v", err)
 				}
 				if len(servers) != tt.expectedCount {
 					t.Errorf("Expected %d servers, got %d", tt.expectedCount, len(servers))
@@ -382,17 +402,26 @@ func TestServersService_ListAll(t *testing.T) {
 			testFormValues(t, r, values{})
 			fmt.Fprint(w, `{
 				"servers": [
-					{"name": "server1", "version": "1.0.0"},
-					{"name": "server2", "version": "2.0.0"}
+					{
+						"server": {"name": "server1", "version": "1.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "server2", "version": "2.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					}
 				],
-				"metadata": {"next_cursor": "page2"}
+				"metadata": {"nextCursor": "page2"}
 			}`)
 			page++
 		} else {
 			testFormValues(t, r, values{"cursor": "page2"})
 			fmt.Fprint(w, `{
 				"servers": [
-					{"name": "server3", "version": "3.0.0"}
+					{
+						"server": {"name": "server3", "version": "3.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					}
 				],
 				"metadata": {}
 			}`)
@@ -435,8 +464,14 @@ func TestServersService_ListByName(t *testing.T) {
 			},
 			responseBody: `{
 				"servers": [
-					{"name": "exact-name", "version": "1.0.0"},
-					{"name": "exact-name-plus", "version": "2.0.0"}
+					{
+						"server": {"name": "exact-name", "version": "1.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "exact-name-plus", "version": "2.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					}
 				],
 				"metadata": {}
 			}`,
@@ -457,10 +492,22 @@ func TestServersService_ListByName(t *testing.T) {
 			},
 			responseBody: `{
 				"servers": [
-					{"name": "test-server-alpha", "version": "1.0.0"},
-					{"name": "test-server", "version": "2.0.0"},
-					{"name": "test-server", "version": "1.5.0"},
-					{"name": "test-server-beta", "version": "3.0.0"}
+					{
+						"server": {"name": "test-server-alpha", "version": "1.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "test-server", "version": "2.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "test-server", "version": "1.5.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "test-server-beta", "version": "3.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					}
 				],
 				"metadata": {}
 			}`,
@@ -554,9 +601,18 @@ func TestServersService_GetByNameLatest(t *testing.T) {
 			},
 			responseBody: `{
 				"servers": [
-					{"name": "test-server-alpha", "version": "2.0.0"},
-					{"name": "test-server", "version": "3.0.0"},
-					{"name": "test-server-beta", "version": "1.5.0"}
+					{
+						"server": {"name": "test-server-alpha", "version": "2.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "test-server", "version": "3.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "test-server-beta", "version": "1.5.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					}
 				],
 				"metadata": {}
 			}`,
@@ -576,8 +632,14 @@ func TestServersService_GetByNameLatest(t *testing.T) {
 			},
 			responseBody: `{
 				"servers": [
-					{"name": "exact-name", "version": "2.5.0"},
-					{"name": "exact-name-plus", "version": "1.0.0"}
+					{
+						"server": {"name": "exact-name", "version": "2.5.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "exact-name-plus", "version": "1.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					}
 				],
 				"metadata": {}
 			}`,
@@ -643,85 +705,87 @@ func TestServersService_GetByNameLatest(t *testing.T) {
 func TestServersService_GetByNameExactVersion(t *testing.T) {
 	tests := []struct {
 		name           string
-		searchName     string
-		searchVersion  string
-		expectedQuery  values
+		serverName     string
+		version        string
+		statusCode     int
 		responseBody   string
 		expectedResult *registryv0.ServerJSON
-		expectNil      bool
+		expectError    bool
+		expectedErrMsg string
 	}{
 		{
-			name:          "exact version found",
-			searchName:    "test-server",
-			searchVersion: "2.0.0",
-			expectedQuery: values{
-				"search": "test-server",
-				"limit":  "100",
-			},
+			name:       "successful get by name and version",
+			serverName: "test/server",
+			version:    "2.0.0",
+			statusCode: http.StatusOK,
 			responseBody: `{
-				"servers": [
-					{"name": "test-server-alpha", "version": "2.0.0"},
-					{"name": "test-server", "version": "1.0.0"},
-					{"name": "test-server", "version": "2.0.0"},
-					{"name": "test-server-beta", "version": "1.5.0"}
-				],
-				"metadata": {}
+				"server": {
+					"name": "test-server",
+					"version": "2.0.0",
+					"description": "Test server version 2.0.0"
+				},
+				"_meta": {
+					"io.modelcontextprotocol.registry/official": {
+						"status": "active",
+						"publishedAt": "2024-01-01T00:00:00Z",
+						"updatedAt": "2024-01-02T00:00:00Z",
+						"isLatest": false
+					}
+				}
 			}`,
 			expectedResult: &registryv0.ServerJSON{
-				Name:    "test-server",
-				Version: "2.0.0",
+				Name:        "test-server",
+				Version:     "2.0.0",
+				Description: "Test server version 2.0.0",
 			},
-			expectNil: false,
+			expectError: false,
 		},
 		{
-			name:          "version not found but server exists",
-			searchName:    "test-server",
-			searchVersion: "3.0.0",
-			expectedQuery: values{
-				"search": "test-server",
-				"limit":  "100",
-			},
+			name:           "version not found",
+			serverName:     "test/server",
+			version:        "999.0.0",
+			statusCode:     http.StatusNotFound,
+			responseBody:   `{"message": "Version not found"}`,
+			expectedResult: nil,
+			expectError:    true,
+			expectedErrMsg: "Version not found",
+		},
+		{
+			name:           "server not found",
+			serverName:     "nonexistent/server",
+			version:        "1.0.0",
+			statusCode:     http.StatusNotFound,
+			responseBody:   `{"message": "Server not found"}`,
+			expectedResult: nil,
+			expectError:    true,
+			expectedErrMsg: "Server not found",
+		},
+		{
+			name:       "server name with special characters",
+			serverName: "org.example/my-server",
+			version:    "1.5.0",
+			statusCode: http.StatusOK,
 			responseBody: `{
-				"servers": [
-					{"name": "test-server", "version": "1.0.0"},
-					{"name": "test-server", "version": "2.0.0"}
-				],
-				"metadata": {}
-			}`,
-			expectNil: true,
-		},
-		{
-			name:          "server name not found",
-			searchName:    "nonexistent",
-			searchVersion: "1.0.0",
-			expectedQuery: values{
-				"search": "nonexistent",
-				"limit":  "100",
-			},
-			responseBody: `{"servers": [], "metadata": {}}`,
-			expectNil:    true,
-		},
-		{
-			name:          "exact match with similar server names",
-			searchName:    "exact-name",
-			searchVersion: "1.5.0",
-			expectedQuery: values{
-				"search": "exact-name",
-				"limit":  "100",
-			},
-			responseBody: `{
-				"servers": [
-					{"name": "exact-name-plus", "version": "1.5.0"},
-					{"name": "exact-name", "version": "1.0.0"},
-					{"name": "exact-name", "version": "1.5.0"}
-				],
-				"metadata": {}
+				"server": {
+					"name": "my-server",
+					"version": "1.5.0",
+					"description": "Server with special chars in name"
+				},
+				"_meta": {
+					"io.modelcontextprotocol.registry/official": {
+						"status": "active",
+						"publishedAt": "2024-01-01T00:00:00Z",
+						"updatedAt": "2024-01-02T00:00:00Z",
+						"isLatest": true
+					}
+				}
 			}`,
 			expectedResult: &registryv0.ServerJSON{
-				Name:    "exact-name",
-				Version: "1.5.0",
+				Name:        "my-server",
+				Version:     "1.5.0",
+				Description: "Server with special chars in name",
 			},
-			expectNil: false,
+			expectError: false,
 		},
 	}
 
@@ -730,26 +794,35 @@ func TestServersService_GetByNameExactVersion(t *testing.T) {
 			client, mux, _, teardown := setup()
 			defer teardown()
 
-			mux.HandleFunc("/v0/servers", func(w http.ResponseWriter, r *http.Request) {
+			// Use URL-encoded path for the mock handler
+			mux.HandleFunc(fmt.Sprintf("/v0/servers/%s/versions/%s", url.PathEscape(tt.serverName), url.PathEscape(tt.version)), func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
-				testFormValues(t, r, tt.expectedQuery)
-
+				w.WriteHeader(tt.statusCode)
 				w.Header().Set("Content-Type", "application/json")
 				fmt.Fprint(w, tt.responseBody)
 			})
 
 			ctx := context.Background()
-			server, _, err := client.Servers.GetByNameExactVersion(ctx, tt.searchName, tt.searchVersion)
+			server, resp, err := client.Servers.GetByNameExactVersion(ctx, tt.serverName, tt.version)
 
-			if err != nil {
-				t.Errorf("Servers.GetByNameExactVersion returned error: %v", err)
-			}
-
-			if tt.expectNil {
-				if server != nil {
-					t.Errorf("Expected nil server, got %+v", server)
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				}
+				if resp.StatusCode != tt.statusCode {
+					t.Errorf("Expected status code %d, got %d", tt.statusCode, resp.StatusCode)
+				}
+				if errResp, ok := err.(*ErrorResponse); ok {
+					if errResp.Message != tt.expectedErrMsg {
+						t.Errorf("Expected error message %q, got %q", tt.expectedErrMsg, errResp.Message)
+					}
+				} else {
+					t.Errorf("Expected ErrorResponse, got %T", err)
 				}
 			} else {
+				if err != nil {
+					t.Errorf("Servers.GetByNameExactVersion returned error: %v", err)
+				}
 				if server == nil {
 					t.Error("Expected server but got nil")
 				} else {
@@ -758,6 +831,9 @@ func TestServersService_GetByNameExactVersion(t *testing.T) {
 					}
 					if server.Version != tt.expectedResult.Version {
 						t.Errorf("Expected server version %q, got %q", tt.expectedResult.Version, server.Version)
+					}
+					if server.Description != tt.expectedResult.Description {
+						t.Errorf("Expected server description %q, got %q", tt.expectedResult.Description, server.Description)
 					}
 				}
 			}
@@ -783,16 +859,25 @@ func TestServersService_GetByNameLatestActiveVersion(t *testing.T) {
 			},
 			responseBody: `{
 				"servers": [
-					{"name": "test-server", "version": "1.0.0", "status": "active"},
-					{"name": "test-server", "version": "2.0.0", "status": "deprecated"},
-					{"name": "test-server", "version": "1.5.0", "status": "active"}
+					{
+						"server": {"name": "test-server", "version": "1.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "test-server", "version": "2.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "deprecated"}}
+					},
+					{
+						"server": {"name": "test-server", "version": "1.5.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					}
 				],
 				"metadata": {}
 			}`,
 			expectedResult: &registryv0.ServerJSON{
 				Name:    "test-server",
 				Version: "1.5.0",
-				Status:  "active",
+				// Note: Status is not accessible from unwrapped ServerJSON
 			},
 			expectNil: false,
 		},
@@ -805,8 +890,14 @@ func TestServersService_GetByNameLatestActiveVersion(t *testing.T) {
 			},
 			responseBody: `{
 				"servers": [
-					{"name": "test-server", "version": "1.0.0", "status": "deprecated"},
-					{"name": "test-server", "version": "2.0.0", "status": "deleted"}
+					{
+						"server": {"name": "test-server", "version": "1.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "deprecated"}}
+					},
+					{
+						"server": {"name": "test-server", "version": "2.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "deleted"}}
+					}
 				],
 				"metadata": {}
 			}`,
@@ -831,16 +922,25 @@ func TestServersService_GetByNameLatestActiveVersion(t *testing.T) {
 			},
 			responseBody: `{
 				"servers": [
-					{"name": "test-server", "version": "invalid", "status": "active"},
-					{"name": "test-server", "version": "1.0.0", "status": "active"},
-					{"name": "test-server", "version": "not-semver", "status": "active"}
+					{
+						"server": {"name": "test-server", "version": "invalid"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "test-server", "version": "1.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "test-server", "version": "not-semver"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					}
 				],
 				"metadata": {}
 			}`,
 			expectedResult: &registryv0.ServerJSON{
 				Name:    "test-server",
 				Version: "1.0.0",
-				Status:  "active",
+				// Note: Status is not accessible from unwrapped ServerJSON
 			},
 			expectNil: false,
 		},
@@ -853,15 +953,21 @@ func TestServersService_GetByNameLatestActiveVersion(t *testing.T) {
 			},
 			responseBody: `{
 				"servers": [
-					{"name": "exact-name-plus", "version": "2.0.0", "status": "active"},
-					{"name": "exact-name", "version": "1.0.0", "status": "active"}
+					{
+						"server": {"name": "exact-name-plus", "version": "2.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					},
+					{
+						"server": {"name": "exact-name", "version": "1.0.0"},
+						"_meta": {"io.modelcontextprotocol.registry/official": {"status": "active"}}
+					}
 				],
 				"metadata": {}
 			}`,
 			expectedResult: &registryv0.ServerJSON{
 				Name:    "exact-name",
 				Version: "1.0.0",
-				Status:  "active",
+				// Note: Status is not accessible from unwrapped ServerJSON
 			},
 			expectNil: false,
 		},
@@ -901,9 +1007,7 @@ func TestServersService_GetByNameLatestActiveVersion(t *testing.T) {
 					if server.Version != tt.expectedResult.Version {
 						t.Errorf("Expected server version %q, got %q", tt.expectedResult.Version, server.Version)
 					}
-					if server.Status != tt.expectedResult.Status {
-						t.Errorf("Expected server status %q, got %q", tt.expectedResult.Status, server.Status)
-					}
+					// Note: Status is not accessible from unwrapped ServerJSON returned by GetByNameLatestActiveVersion
 				}
 			}
 		})
@@ -928,24 +1032,26 @@ func TestServersService_ListByUpdatedSince(t *testing.T) {
 				`{
 					"servers": [
 						{
-							"name": "test/server1",
-							"version": "1.0.0",
-							"status": "active",
-							"meta": {
-								"official": {
-									"id": "server1",
+							"server": {
+								"name": "test/server1",
+								"version": "1.0.0"
+							},
+							"_meta": {
+								"io.modelcontextprotocol.registry/official": {
+									"status": "active",
 									"updatedAt": "2024-01-02T00:00:00Z"
 								}
 							}
 						},
 						{
-							"name": "test/server2",
-							"version": "1.1.0",
-							"status": "active",
-							"meta": {
-								"official": {
-									"id": "server2",
-									"updated_at": "2024-01-03T00:00:00Z"
+							"server": {
+								"name": "test/server2",
+								"version": "1.1.0"
+							},
+							"_meta": {
+								"io.modelcontextprotocol.registry/official": {
+									"status": "active",
+									"updatedAt": "2024-01-03T00:00:00Z"
 								}
 							}
 						}
@@ -963,31 +1069,33 @@ func TestServersService_ListByUpdatedSince(t *testing.T) {
 				`{
 					"servers": [
 						{
-							"name": "test/server1",
-							"version": "1.0.0",
-							"status": "active",
-							"meta": {
-								"official": {
-									"id": "server1",
+							"server": {
+								"name": "test/server1",
+								"version": "1.0.0"
+							},
+							"_meta": {
+								"io.modelcontextprotocol.registry/official": {
+									"status": "active",
 									"updatedAt": "2024-01-02T00:00:00Z"
 								}
 							}
 						}
 					],
 					"metadata": {
-						"next_cursor": "page2"
+						"nextCursor": "page2"
 					}
 				}`,
 				`{
 					"servers": [
 						{
-							"name": "test/server2",
-							"version": "1.1.0",
-							"status": "active",
-							"meta": {
-								"official": {
-									"id": "server2",
-									"updated_at": "2024-01-03T00:00:00Z"
+							"server": {
+								"name": "test/server2",
+								"version": "1.1.0"
+							},
+							"_meta": {
+								"io.modelcontextprotocol.registry/official": {
+									"status": "active",
+									"updatedAt": "2024-01-03T00:00:00Z"
 								}
 							}
 						}
@@ -1067,16 +1175,9 @@ func TestServersService_ListByUpdatedSince(t *testing.T) {
 				t.Errorf("Expected %d servers, got %d", tt.expectedCount, len(servers))
 			}
 
-			// Verify all returned servers have updated_at after the since timestamp
-			for _, server := range servers {
-				if server.Meta != nil && server.Meta.Official != nil && !server.Meta.Official.UpdatedAt.IsZero() {
-					serverUpdatedAt := server.Meta.Official.UpdatedAt
-					if serverUpdatedAt.Before(tt.since) {
-						t.Errorf("Server %s updated_at %s is before since timestamp %s",
-							server.Meta.Official.ServerID, serverUpdatedAt.Format(time.RFC3339), tt.since.Format(time.RFC3339))
-					}
-				}
-			}
+			// Note: Cannot verify UpdatedAt timestamps from unwrapped ServerJSON
+			// The registry metadata (including UpdatedAt) is only accessible through ServerResponse.Meta.Official
+			// which is not available in the unwrapped ServerJSON returned by ListByUpdatedSince
 		})
 	}
 }

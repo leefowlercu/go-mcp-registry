@@ -32,9 +32,9 @@ func main() {
 		}
 
 		fmt.Printf("Got %d servers on page %d\n", len(resp.Servers), pageNum)
-		for _, server := range resp.Servers {
-			allServers = append(allServers, server.Name)
-			fmt.Printf("  - %s\n", server.Name)
+		for _, serverResponse := range resp.Servers {
+			allServers = append(allServers, serverResponse.Server.Name)
+			fmt.Printf("  - %s\n", serverResponse.Server.Name)
 		}
 
 		// Check if there are more pages
