@@ -16,7 +16,7 @@ import (
 //
 // MCP Registry API docs: https://registry.modelcontextprotocol.io/docs#/servers/get_servers_v0_servers_get
 func (s *ServersService) List(ctx context.Context, opts *ServerListOptions) (*registryv0.ServerListResponse, *Response, error) {
-	u := "v0/servers"
+	u := "v0.1/servers"
 	u, err := addOptions(u, opts)
 	if err != nil {
 		return nil, nil, err
@@ -46,15 +46,21 @@ func (s *ServersService) List(ctx context.Context, opts *ServerListOptions) (*re
 //
 // Server names contain forward slashes (e.g., "ai.waystation/gmail") and will be URL-encoded automatically.
 //
+// Note: The endpoint GET /v0/servers/{serverName} has been removed. This method now uses
+// GET /v0.1/servers/{serverName}/versions/latest or GET /v0.1/servers/{serverName}/versions/{version}
+//
 // MCP Registry API docs: https://registry.modelcontextprotocol.io/docs#/operations/get-server
 func (s *ServersService) Get(ctx context.Context, serverName string, opts *ServerGetOptions) (*registryv0.ServerJSON, *Response, error) {
 	// URL-encode the server name to handle forward slashes
 	encodedName := url.PathEscape(serverName)
-	u := fmt.Sprintf("v0/servers/%s", encodedName)
-	u, err := addOptions(u, opts)
-	if err != nil {
-		return nil, nil, err
+
+	// Determine the version to fetch
+	version := "latest"
+	if opts != nil && opts.Version != "" {
+		version = url.PathEscape(opts.Version)
 	}
+
+	u := fmt.Sprintf("v0.1/servers/%s/versions/%s", encodedName, version)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -84,7 +90,7 @@ func (s *ServersService) Get(ctx context.Context, serverName string, opts *Serve
 func (s *ServersService) ListVersionsByName(ctx context.Context, serverName string) ([]registryv0.ServerJSON, *Response, error) {
 	// URL-encode the server name to handle forward slashes
 	encodedName := url.PathEscape(serverName)
-	u := fmt.Sprintf("v0/servers/%s/versions", encodedName)
+	u := fmt.Sprintf("v0.1/servers/%s/versions", encodedName)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -239,7 +245,7 @@ func (s *ServersService) GetByNameExactVersion(ctx context.Context, name, versio
 	// URL-encode the server name and version to handle forward slashes and special characters
 	encodedName := url.PathEscape(name)
 	encodedVersion := url.PathEscape(version)
-	u := fmt.Sprintf("v0/servers/%s/versions/%s", encodedName, encodedVersion)
+	u := fmt.Sprintf("v0.1/servers/%s/versions/%s", encodedName, encodedVersion)
 
 	req, err := s.client.NewRequest(http.MethodGet, u, nil)
 	if err != nil {

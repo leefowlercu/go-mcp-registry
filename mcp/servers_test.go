@@ -124,7 +124,7 @@ func TestServersService_List(t *testing.T) {
 			client, mux, _, teardown := setup()
 			defer teardown()
 
-			mux.HandleFunc("/v0/servers", func(w http.ResponseWriter, r *http.Request) {
+			mux.HandleFunc("/v0.1/servers", func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
 				testFormValues(t, r, tt.expectedQuery)
 
@@ -244,15 +244,14 @@ func TestServersService_Get(t *testing.T) {
 			client, mux, _, teardown := setup()
 			defer teardown()
 
-			mux.HandleFunc(fmt.Sprintf("/v0/servers/%s", url.PathEscape(tt.serverName)), func(w http.ResponseWriter, r *http.Request) {
-				testMethod(t, r, "GET")
+			// Determine the expected version in the path
+			version := "latest"
+			if tt.opts != nil && tt.opts.Version != "" {
+				version = url.PathEscape(tt.opts.Version)
+			}
 
-				// Check version parameter if specified
-				if tt.opts != nil && tt.opts.Version != "" {
-					if version := r.URL.Query().Get("version"); version != tt.opts.Version {
-						t.Errorf("Expected version parameter %q, got %q", tt.opts.Version, version)
-					}
-				}
+			mux.HandleFunc(fmt.Sprintf("/v0.1/servers/%s/versions/%s", url.PathEscape(tt.serverName), version), func(w http.ResponseWriter, r *http.Request) {
+				testMethod(t, r, "GET")
 
 				w.WriteHeader(tt.statusCode)
 				w.Header().Set("Content-Type", "application/json")
@@ -359,7 +358,7 @@ func TestServersService_ListVersionsByName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mux.HandleFunc(fmt.Sprintf("/v0/servers/%s/versions", url.PathEscape(tt.serverName)), func(w http.ResponseWriter, r *http.Request) {
+			mux.HandleFunc(fmt.Sprintf("/v0.1/servers/%s/versions", url.PathEscape(tt.serverName)), func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
 				w.WriteHeader(tt.statusCode)
 				w.Header().Set("Content-Type", "application/json")
@@ -541,7 +540,7 @@ func TestServersService_ListByName(t *testing.T) {
 			client, mux, _, teardown := setup()
 			defer teardown()
 
-			mux.HandleFunc("/v0/servers", func(w http.ResponseWriter, r *http.Request) {
+			mux.HandleFunc("/v0.1/servers", func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
 				testFormValues(t, r, tt.expectedQuery)
 
@@ -667,7 +666,7 @@ func TestServersService_GetByNameLatest(t *testing.T) {
 			client, mux, _, teardown := setup()
 			defer teardown()
 
-			mux.HandleFunc("/v0/servers", func(w http.ResponseWriter, r *http.Request) {
+			mux.HandleFunc("/v0.1/servers", func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
 				testFormValues(t, r, tt.expectedQuery)
 
@@ -795,7 +794,7 @@ func TestServersService_GetByNameExactVersion(t *testing.T) {
 			defer teardown()
 
 			// Use URL-encoded path for the mock handler
-			mux.HandleFunc(fmt.Sprintf("/v0/servers/%s/versions/%s", url.PathEscape(tt.serverName), url.PathEscape(tt.version)), func(w http.ResponseWriter, r *http.Request) {
+			mux.HandleFunc(fmt.Sprintf("/v0.1/servers/%s/versions/%s", url.PathEscape(tt.serverName), url.PathEscape(tt.version)), func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
 				w.WriteHeader(tt.statusCode)
 				w.Header().Set("Content-Type", "application/json")
@@ -978,7 +977,7 @@ func TestServersService_GetByNameLatestActiveVersion(t *testing.T) {
 			client, mux, _, teardown := setup()
 			defer teardown()
 
-			mux.HandleFunc("/v0/servers", func(w http.ResponseWriter, r *http.Request) {
+			mux.HandleFunc("/v0.1/servers", func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
 				testFormValues(t, r, tt.expectedQuery)
 
@@ -1135,7 +1134,7 @@ func TestServersService_ListByUpdatedSince(t *testing.T) {
 			defer teardown()
 
 			callCount := 0
-			mux.HandleFunc("/v0/servers", func(w http.ResponseWriter, r *http.Request) {
+			mux.HandleFunc("/v0.1/servers", func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
 
 				// Verify that updated_since parameter is set correctly

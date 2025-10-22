@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Updated API path prefix from `v0` to `v0.1` to use the stable API version
+- All API endpoints now use the `v0.1` path prefix instead of `v0`
+- **BREAKING**: Updated `Get()` method to handle removed endpoint `GET /v0/servers/{serverName}`
+  - Now uses `GET /v0.1/servers/{serverName}/versions/latest` when no version is specified
+  - Uses `GET /v0.1/servers/{serverName}/versions/{version}` when version is specified
+- Updated unit tests to use the new `v0.1` API paths and endpoint structures
+
+### Migration Guide
+- No code changes required for SDK users - the `Get()` method signature remains unchanged
+- The method now internally routes to the correct versioned endpoint based on the `ServerGetOptions`
+- This update ensures compatibility with the MCP Registry's endpoint simplification
+
+### Notes
+- This change aligns with the MCP Registry's introduction of a stable API path prefix and endpoint simplification
+- The removed endpoint `GET /v0/servers/{serverName}` has been replaced with versioned endpoints
+- Reference: https://github.com/modelcontextprotocol/registry/blob/main/docs/reference/api/CHANGELOG.md
+
 ## [0.5.0] - 2025-10-10
 
 ### Changed
