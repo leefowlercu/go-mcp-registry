@@ -392,7 +392,7 @@ func TestServersService_ListAll(t *testing.T) {
 	defer teardown()
 
 	page := 0
-	mux.HandleFunc("/v0/servers", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v0.1/servers", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "GET")
 
 		w.Header().Set("Content-Type", "application/json")
