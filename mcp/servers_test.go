@@ -1181,6 +1181,99 @@ func TestServersService_ListByUpdatedSince(t *testing.T) {
 	}
 }
 
+func TestServersService_Get_NilResponse(t *testing.T) {
+	client, mux, _, teardown := setup()
+	defer teardown()
+
+	serverName := "test/server"
+
+	mux.HandleFunc(fmt.Sprintf("/v0.1/servers/%s/versions/latest", url.PathEscape(serverName)), func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, "GET")
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		// Return null which will unmarshal to nil
+		fmt.Fprint(w, "null")
+	})
+
+	ctx := context.Background()
+	server, _, err := client.Servers.Get(ctx, serverName, nil)
+
+	if err != nil {
+		t.Errorf("Servers.Get returned error: %v", err)
+	}
+
+	if server != nil {
+		t.Errorf("Expected nil server, got %+v", server)
+	}
+}
+
+func TestServersService_GetByNameExactVersion_NilResponse(t *testing.T) {
+	client, mux, _, teardown := setup()
+	defer teardown()
+
+	serverName := "test/server"
+	version := "1.0.0"
+
+	mux.HandleFunc(fmt.Sprintf("/v0.1/servers/%s/versions/%s", url.PathEscape(serverName), url.PathEscape(version)), func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, "GET")
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		// Return null which will unmarshal to nil
+		fmt.Fprint(w, "null")
+	})
+
+	ctx := context.Background()
+	server, _, err := client.Servers.GetByNameExactVersion(ctx, serverName, version)
+
+	if err != nil {
+		t.Errorf("Servers.GetByNameExactVersion returned error: %v", err)
+	}
+
+	if server != nil {
+		t.Errorf("Expected nil server, got %+v", server)
+	}
+}
+
+func TestServersService_GetByNameLatestActiveVersion_NoOfficialMeta(t *testing.T) {
+	client, mux, _, teardown := setup()
+	defer teardown()
+
+	mux.HandleFunc("/v0.1/servers", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, "GET")
+		testFormValues(t, r, values{
+			"search": "test-server",
+			"limit":  "100",
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		// Return servers without official metadata
+		fmt.Fprint(w, `{
+			"servers": [
+				{
+					"server": {"name": "test-server", "version": "1.0.0"},
+					"_meta": {}
+				},
+				{
+					"server": {"name": "test-server", "version": "2.0.0"}
+				}
+			],
+			"metadata": {}
+		}`)
+	})
+
+	ctx := context.Background()
+	server, _, err := client.Servers.GetByNameLatestActiveVersion(ctx, "test-server")
+
+	if err != nil {
+		t.Errorf("Servers.GetByNameLatestActiveVersion returned error: %v", err)
+	}
+
+	// Should return nil since no servers have official metadata with active status
+	if server != nil {
+		t.Errorf("Expected nil server (no official metadata), got %+v", server)
+	}
+}
+
 // Test helper functions
 
 func setup() (client *Client, mux *http.ServeMux, serverURL string, teardown func()) {
