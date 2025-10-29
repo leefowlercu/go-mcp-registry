@@ -13,12 +13,23 @@ The Model Context Protocol (MCP) enables applications to integrate with external
 
 This Go SDK provides an idiomatic interface to the MCP Registry API, allowing you to:
 
-- 🔍 **Discover MCP servers** with search and filtering capabilities
-- 📦 **Retrieve server details** including installation packages and configurations
-- 🔄 **Handle pagination** automatically or manually
-- ⚡ **Track rate limits** and handle API errors gracefully
-- 🎯 **Find specific versions** with flexible version resolution
-- 📊 **Access comprehensive metadata** for each server
+- **Discover MCP servers** with search and filtering capabilities
+- **Retrieve server details** including installation packages and configurations
+- **Handle pagination** automatically or manually
+- **Track rate limits** and handle API errors gracefully
+- **Find specific versions** with flexible version resolution
+- **Access comprehensive metadata** for each server
+
+## What's New in v0.6.0
+
+This release includes API v0.1 migration and significant testing improvements:
+
+- **API v0.1 Support**: All endpoints now use the stable v0.1 API path
+- **Enhanced Testing**: Test coverage increased from 73.5% to 94.2%
+- **Version Options**: Get() method now supports version-specific retrieval via ServerGetOptions
+- **Breaking Change**: Internal endpoint migration (no code changes required for users)
+
+For complete details, see the [CHANGELOG](CHANGELOG.md).
 
 ## Installation
 
@@ -55,8 +66,8 @@ func main() {
     }
 
     fmt.Printf("Found %d servers:\n", len(servers.Servers))
-    for _, server := range servers.Servers {
-        fmt.Printf("- %s (v%s): %s\n", server.Name, server.Version, server.Description)
+    for _, serverResponse := range servers.Servers {
+        fmt.Printf("- %s (v%s): %s\n", serverResponse.Server.Name, serverResponse.Server.Version, serverResponse.Server.Description)
     }
 
     // Get all versions of a server by name
@@ -114,18 +125,53 @@ allServers, _, err := client.Servers.ListAll(ctx, nil)
 ### Getting Servers by Name
 
 ```go
+// Get latest version using Get()
+server, _, err := client.Servers.Get(ctx, "ai.waystation/gmail", nil)
+
+// Get specific version using Get()
+server, _, err := client.Servers.Get(ctx, "ai.waystation/gmail", &mcp.ServerGetOptions{
+    Version: "1.0.0",
+})
+
 // Get all versions of a server by name
 servers, _, err := client.Servers.ListVersionsByName(ctx, "ai.waystation/gmail")
 
-// Get latest version only
+// Get latest version using name filter
 server, _, err := client.Servers.GetByNameLatest(ctx, "ai.waystation/gmail")
 
-// Get specific version
+// Get specific version via dedicated endpoint (most performant)
 server, _, err := client.Servers.GetByNameExactVersion(ctx, "ai.waystation/gmail", "0.3.1")
 
 // Get latest active version (uses semantic versioning)
 server, _, err := client.Servers.GetByNameLatestActiveVersion(ctx, "ai.waystation/gmail")
 ```
+
+### Accessing Registry Metadata
+
+Registry metadata (Status, PublishedAt, UpdatedAt, IsLatest) is available when using List() methods:
+
+```go
+servers, _, err := client.Servers.List(ctx, nil)
+if err != nil {
+    log.Fatal(err)
+}
+
+for _, serverResponse := range servers.Servers {
+    // Access server data
+    fmt.Printf("Name: %s\n", serverResponse.Server.Name)
+    fmt.Printf("Version: %s\n", serverResponse.Server.Version)
+
+    // Access metadata (if available)
+    if serverResponse.Meta.Official != nil {
+        fmt.Printf("Status: %s\n", serverResponse.Meta.Official.Status)
+        fmt.Printf("Published: %v\n", serverResponse.Meta.Official.PublishedAt)
+        fmt.Printf("Updated: %v\n", serverResponse.Meta.Official.UpdatedAt)
+        fmt.Printf("Is Latest: %v\n", serverResponse.Meta.Official.IsLatest)
+    }
+}
+```
+
+Note: Get() methods return ServerJSON without metadata. Use List() methods to access registry metadata.
 
 ### Manual Pagination
 
@@ -141,8 +187,8 @@ for {
     }
 
     // Process servers
-    for _, server := range resp.Servers {
-        fmt.Printf("Server: %s\n", server.Name)
+    for _, serverResponse := range resp.Servers {
+        fmt.Printf("Server: %s\n", serverResponse.Server.Name)
     }
 
     // Check for more pages
@@ -187,6 +233,7 @@ if resp.Rate.Limit > 0 {
 | `Get(ctx, serverName, opts)` | Get server by name with optional version |
 | `ListAll(ctx, opts)` | Get all servers (automatic pagination) |
 | `ListVersionsByName(ctx, name)` | Get all versions of a server by name |
+| `ListByName(ctx, name)` | Get all versions with exact name match |
 | `ListByUpdatedSince(ctx, since)` | Get servers updated since timestamp |
 | `GetByNameLatest(ctx, name)` | Get latest version using API filter |
 | `GetByNameExactVersion(ctx, name, version)` | Get specific version via dedicated endpoint |
@@ -198,20 +245,27 @@ For detailed documentation, see the [Go Reference](https://pkg.go.dev/github.com
 
 This repository includes working examples in the `examples/` directory:
 
-- **[examples/list/](examples/list/)** - List servers with basic options
-- **[examples/get/](examples/get/)** - Get server details by name
+- **[examples/list/](examples/list/)** - List servers with search, filtering, and metadata access
+- **[examples/get/](examples/get/)** - Get server details with version options and error handling
 - **[examples/paginate/](examples/paginate/)** - Manual and automatic pagination
+- **[examples/version/](examples/version/)** - Version-specific retrieval using GetByNameExactVersion
+- **[examples/updated/](examples/updated/)** - Timestamp-based filtering with ListByUpdatedSince
 
 Run examples:
 ```bash
 go run ./examples/list/
 go run ./examples/get/ "ai.waystation/gmail"
+go run ./examples/get/ "ai.waystation/gmail" "1.0.0"
 go run ./examples/paginate/
+go run ./examples/version/ "ai.waystation/gmail"
+go run ./examples/updated/ 24
 ```
 
 ## Development
 
 ### Running Tests
+
+Current test coverage: **94.2%**
 
 ```bash
 # Unit tests

@@ -12,24 +12,55 @@ import (
 func main() {
 	// Check if server name was provided
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go <server-name>")
-		fmt.Println("\nExample:")
+		fmt.Println("Usage: go run main.go <server-name> [version]")
+		fmt.Println("\nExamples:")
 		fmt.Println("  go run main.go ai.waystation/gmail")
+		fmt.Println("  go run main.go ai.waystation/gmail 1.0.0")
 		fmt.Println("\nTo see available servers, run:")
 		fmt.Println("  go run ../list/main.go")
 		os.Exit(1)
 	}
 
 	serverName := os.Args[1]
+	var version string
+	if len(os.Args) >= 3 {
+		version = os.Args[2]
+	}
 
 	// Create a client with default settings
 	client := mcp.NewClient(nil)
 	ctx := context.Background()
 
 	// Get server by name (API v2 uses names, not IDs)
-	fmt.Printf("Getting details for server: %s\n", serverName)
-	server, resp, err := client.Servers.Get(ctx, serverName, nil)
+	var opts *mcp.ServerGetOptions
+	if version != "" {
+		fmt.Printf("Getting details for server: %s (version %s)\n", serverName, version)
+		opts = &mcp.ServerGetOptions{Version: version}
+	} else {
+		fmt.Printf("Getting details for server: %s (latest version)\n", serverName)
+	}
+
+	server, resp, err := client.Servers.Get(ctx, serverName, opts)
 	if err != nil {
+		// Demonstrate error type checking
+		if rateLimitErr, ok := err.(*mcp.RateLimitError); ok {
+			fmt.Printf("Rate limit exceeded! Try again after %v\n", rateLimitErr.Rate.Reset)
+			fmt.Printf("Current rate: %d/%d requests remaining\n",
+				rateLimitErr.Rate.Remaining, rateLimitErr.Rate.Limit)
+			os.Exit(1)
+		}
+
+		if errResp, ok := err.(*mcp.ErrorResponse); ok {
+			fmt.Printf("API error (%d): %s\n", errResp.Response.StatusCode, errResp.Message)
+			if len(errResp.Errors) > 0 {
+				fmt.Println("Details:")
+				for _, e := range errResp.Errors {
+					fmt.Printf("  - %s: %s\n", e.Field, e.Message)
+				}
+			}
+			os.Exit(1)
+		}
+
 		log.Fatal(err)
 	}
 

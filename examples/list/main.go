@@ -53,4 +53,26 @@ func main() {
 	for _, serverResponse := range searchResp.Servers {
 		fmt.Printf("- %s: %s\n", serverResponse.Server.Name, serverResponse.Server.Description)
 	}
+
+	// Example: Accessing registry metadata
+	// Note: Registry metadata (Status, PublishedAt, UpdatedAt, IsLatest) is available
+	// in ServerResponse.Meta.Official when using List(), but not when using Get()
+	fmt.Println("\nDemonstrating metadata access (first 5 results)...")
+	for i, serverResponse := range resp.Servers {
+		if i >= 5 {
+			break
+		}
+
+		fmt.Printf("\n%s (v%s):\n", serverResponse.Server.Name, serverResponse.Server.Version)
+
+		// Check if official metadata is available
+		if serverResponse.Meta.Official != nil {
+			fmt.Printf("  Status: %s\n", serverResponse.Meta.Official.Status)
+			fmt.Printf("  Published: %v\n", serverResponse.Meta.Official.PublishedAt)
+			fmt.Printf("  Updated: %v\n", serverResponse.Meta.Official.UpdatedAt)
+			fmt.Printf("  Is Latest: %v\n", serverResponse.Meta.Official.IsLatest)
+		} else {
+			fmt.Println("  (No official metadata available)")
+		}
+	}
 }

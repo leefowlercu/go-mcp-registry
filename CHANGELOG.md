@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- New example program `examples/version/` demonstrating version-specific retrieval using GetByNameExactVersion
+- New example program `examples/updated/` demonstrating timestamp-based filtering with ListByUpdatedSince
+- Comprehensive "What's New in v0.6.0" section to README highlighting API v0.1 migration and testing improvements
+- "Accessing Registry Metadata" section to README with complete guide on ServerResponse.Meta.Official fields
+- Test coverage metric (94.2%) to README Development section
+
+### Changed
+- Enhanced `examples/get/` to demonstrate version-specific retrieval and error type checking (RateLimitError, ErrorResponse)
+- Enhanced `examples/list/` to demonstrate metadata access (Status, PublishedAt, UpdatedAt, IsLatest)
+- Comprehensive README.md update for professional tone, accuracy, and comprehensiveness:
+  - Removed emojis from feature list for professional tone
+  - Expanded "Getting Servers by Name" section with Get() version options
+  - Updated Examples section to include all 5 example programs with descriptions
+  - Added `ListByName(ctx, name)` to API Methods Reference table
+- Updated all example run commands in README to show version and parameter options
+- Updated GitHub Actions workflow to build all 5 examples using matrix strategy:
+  - Separated examples into dedicated `build-examples` job that runs after tests
+  - Examples now build in parallel with individual failure reporting
+  - Uses `fail-fast: false` to show all failing examples at once
+
+### Fixed
+- README Quick Start example: corrected `server.Name` to `serverResponse.Server.Name`
+- README Manual Pagination example: corrected `server.Name` to `serverResponse.Server.Name`
+- Code formatting in `mcp/mcp_test.go` to comply with gofmt standards
+
+## [0.6.0] - 2025-10-28
+
+### Added
+- Comprehensive unit tests for pointer utility functions (String, StringValue, Int, IntValue, Bool, BoolValue)
+- Comprehensive unit tests for error handling (ErrorResponse, RateLimitError, sanitizeURL, CheckResponse)
+- Comprehensive unit tests for core client functionality (NewRequest, parseRate, Do, addOptions, newResponse)
+- Edge case tests for servers service methods (nil response handling, missing metadata)
+- Increased test coverage from 73.5% to 94.2%
+
 ### Changed
 - Updated API path prefix from `v0` to `v0.1` to use the stable API version
 - All API endpoints now use the `v0.1` path prefix instead of `v0`
@@ -14,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Now uses `GET /v0.1/servers/{serverName}/versions/latest` when no version is specified
   - Uses `GET /v0.1/servers/{serverName}/versions/{version}` when version is specified
 - Updated unit tests to use the new `v0.1` API paths and endpoint structures
+
+### Fixed
+- Test mock handler in TestServersService_ListAll to use correct v0.1 endpoint
 
 ### Migration Guide
 - No code changes required for SDK users - the `Get()` method signature remains unchanged
@@ -218,6 +256,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Memory-efficient handling of large result sets
 - Optional automatic pagination for convenience
 
+[0.6.0]: https://github.com/leefowlercu/go-mcp-registry/releases/tag/v0.6.0
+[0.5.0]: https://github.com/leefowlercu/go-mcp-registry/releases/tag/v0.5.0
 [0.4.0]: https://github.com/leefowlercu/go-mcp-registry/releases/tag/v0.4.0
 [0.3.0]: https://github.com/leefowlercu/go-mcp-registry/releases/tag/v0.3.0
 [0.2.0]: https://github.com/leefowlercu/go-mcp-registry/releases/tag/v0.2.0

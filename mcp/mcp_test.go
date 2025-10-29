@@ -198,12 +198,12 @@ func TestParseRate(t *testing.T) {
 
 func TestDo(t *testing.T) {
 	tests := []struct {
-		name        string
-		ctx         context.Context
-		statusCode  int
+		name         string
+		ctx          context.Context
+		statusCode   int
 		responseBody string
-		wantErr     bool
-		wantErrMsg  string
+		wantErr      bool
+		wantErrMsg   string
 	}{
 		{
 			name:         "successful request",
@@ -355,11 +355,11 @@ func TestAddOptions(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		baseURL  string
-		opts     any
-		wantURL  string
-		wantErr  bool
+		name    string
+		baseURL string
+		opts    any
+		wantURL string
+		wantErr bool
 	}{
 		{
 			name:    "no options",
