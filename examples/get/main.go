@@ -16,6 +16,7 @@ func main() {
 		fmt.Println("\nExamples:")
 		fmt.Println("  go run main.go ai.waystation/gmail")
 		fmt.Println("  go run main.go ai.waystation/gmail 1.0.0")
+		fmt.Println("  go run main.go com.xquik/mcp 2.4.8")
 		fmt.Println("\nTo see available servers, run:")
 		fmt.Println("  go run ../list/main.go")
 		os.Exit(1)

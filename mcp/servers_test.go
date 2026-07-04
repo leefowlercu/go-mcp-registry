@@ -237,6 +237,67 @@ func TestServersService_Get(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name:       "successful get hosted remote with source repository",
+			serverName: "com.xquik/mcp",
+			opts:       &ServerGetOptions{Version: "2.4.8"},
+			statusCode: http.StatusOK,
+			responseBody: `{
+				"server": {
+					"name": "com.xquik/mcp",
+					"version": "2.4.8",
+					"description": "X data platform with REST endpoints, webhooks, monitoring, giveaway draws, and MCP tools.",
+					"repository": {
+						"url": "https://github.com/Xquik-dev/x-twitter-scraper",
+						"source": "github"
+					},
+					"remotes": [
+						{
+							"type": "streamable-http",
+							"url": "https://xquik.com/mcp",
+							"headers": [
+								{
+									"name": "Authorization",
+									"isSecret": true
+								}
+							]
+						}
+					]
+				},
+				"_meta": {
+					"io.modelcontextprotocol.registry/official": {
+						"status": "active",
+						"publishedAt": "2026-07-04T00:00:00Z",
+						"updatedAt": "2026-07-04T00:00:00Z",
+						"isLatest": true
+					}
+				}
+			}`,
+			expectedResult: &registryv0.ServerJSON{
+				Name:        "com.xquik/mcp",
+				Version:     "2.4.8",
+				Description: "X data platform with REST endpoints, webhooks, monitoring, giveaway draws, and MCP tools.",
+				Repository: model.Repository{
+					URL:    "https://github.com/Xquik-dev/x-twitter-scraper",
+					Source: "github",
+				},
+				Remotes: []model.Transport{
+					{
+						Type: "streamable-http",
+						URL:  "https://xquik.com/mcp",
+						Headers: []model.KeyValueInput{
+							{
+								Name: "Authorization",
+								InputWithVariables: model.InputWithVariables{
+									Input: model.Input{IsSecret: true},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
