@@ -155,9 +155,25 @@ func TestRateLimitError_Is(t *testing.T) {
 				Response: sharedResponse,
 				Message:  "API rate limit exceeded",
 			},
-			// Note: Due to how sanitizeURL works (creates a new pointer each time),
-			// this will return false even though the errors are logically identical.
-			// This tests the current behavior, not the ideal behavior.
+			want: true,
+		},
+		{
+			name: "different URL",
+			target: &RateLimitError{
+				Rate: Rate{
+					Limit:     100,
+					Remaining: 0,
+					Reset:     resetTime,
+				},
+				Response: &http.Response{
+					StatusCode: http.StatusTooManyRequests,
+					Request: &http.Request{
+						Method: "GET",
+						URL:    mustParseURL("https://api.example.com/v0.1/other"),
+					},
+				},
+				Message: "API rate limit exceeded",
+			},
 			want: false,
 		},
 		{

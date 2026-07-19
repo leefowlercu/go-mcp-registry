@@ -66,7 +66,7 @@ func (r *RateLimitError) Is(target error) bool {
 		r.Message == v.Message &&
 		r.Response.StatusCode == v.Response.StatusCode &&
 		r.Response.Request.Method == v.Response.Request.Method &&
-		sanitizeURL(r.Response.Request.URL) == sanitizeURL(v.Response.Request.URL)
+		sanitizeURL(r.Response.Request.URL).String() == sanitizeURL(v.Response.Request.URL).String()
 }
 
 // CheckResponse checks the API response for errors, and returns them if present.

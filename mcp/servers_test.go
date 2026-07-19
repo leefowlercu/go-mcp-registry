@@ -311,11 +311,15 @@ func TestServersService_Get(t *testing.T) {
 				version = url.PathEscape(tt.opts.Version)
 			}
 
-			mux.HandleFunc(fmt.Sprintf("/v0.1/servers/%s/versions/%s", url.PathEscape(tt.serverName), version), func(w http.ResponseWriter, r *http.Request) {
+			expectedPath := fmt.Sprintf("/v0.1/servers/%s/versions/%s", url.PathEscape(tt.serverName), version)
+			mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 				testMethod(t, r, "GET")
+				if r.URL.EscapedPath() != expectedPath {
+					t.Errorf("Request path = %q, want %q", r.URL.EscapedPath(), expectedPath)
+				}
 
-				w.WriteHeader(tt.statusCode)
 				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tt.statusCode)
 				fmt.Fprint(w, tt.responseBody)
 			})
 
