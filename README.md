@@ -133,6 +133,11 @@ server, _, err := client.Servers.Get(ctx, "ai.waystation/gmail", &mcp.ServerGetO
     Version: "1.0.0",
 })
 
+// Get a hosted remote server that uses a slash-qualified registry name
+server, _, err := client.Servers.Get(ctx, "com.xquik/mcp", &mcp.ServerGetOptions{
+    Version: "2.4.8",
+})
+
 // Get all versions of a server by name
 servers, _, err := client.Servers.ListVersionsByName(ctx, "ai.waystation/gmail")
 
