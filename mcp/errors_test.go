@@ -140,9 +140,10 @@ func TestRateLimitError_Is(t *testing.T) {
 	}
 
 	tests := []struct {
-		name   string
-		target error
-		want   bool
+		name     string
+		receiver *RateLimitError
+		target   error
+		want     bool
 	}{
 		{
 			name: "identical values but different instances",
@@ -173,6 +174,25 @@ func TestRateLimitError_Is(t *testing.T) {
 					},
 				},
 				Message: "API rate limit exceeded",
+			},
+			want: false,
+		},
+		{
+			name:     "both URLs nil",
+			receiver: rateLimitErrorWithURL(baseErr, nil),
+			target: &RateLimitError{
+				Rate:     baseErr.Rate,
+				Response: responseWithURL(http.MethodGet, nil),
+				Message:  "API rate limit exceeded",
+			},
+			want: true,
+		},
+		{
+			name: "only target URL nil",
+			target: &RateLimitError{
+				Rate:     baseErr.Rate,
+				Response: responseWithURL(http.MethodGet, nil),
+				Message:  "API rate limit exceeded",
 			},
 			want: false,
 		},
@@ -211,11 +231,33 @@ func TestRateLimitError_Is(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := baseErr.Is(tt.target)
+			receiver := tt.receiver
+			if receiver == nil {
+				receiver = baseErr
+			}
+			got := receiver.Is(tt.target)
 			if got != tt.want {
 				t.Errorf("RateLimitError.Is() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func rateLimitErrorWithURL(base *RateLimitError, requestURL *url.URL) *RateLimitError {
+	return &RateLimitError{
+		Rate:     base.Rate,
+		Response: responseWithURL(base.Response.Request.Method, requestURL),
+		Message:  base.Message,
+	}
+}
+
+func responseWithURL(method string, requestURL *url.URL) *http.Response {
+	return &http.Response{
+		StatusCode: http.StatusTooManyRequests,
+		Request: &http.Request{
+			Method: method,
+			URL:    requestURL,
+		},
 	}
 }
 
